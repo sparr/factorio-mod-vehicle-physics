@@ -26,22 +26,28 @@ marks.ground_patch = nil
 marks.ground_patch_higher = nil
 marks.time_before_removed = math.ceil(60 * settings.startup["vehphy-tiremarks-duration"].value)
 marks.animation =
-    {
-      width = 41,
-      height = 41,
-      frame_count = 1,
-      direction_count = 1,
-	  scale = 0.5,
-      filename = "__vehicle-physics__/tire_marks.png"
-    }
+	{
+		width = 41,
+		height = 41,
+		frame_count = 1,
+		direction_count = 1,
+		scale = 0.5,
+		filename = "__vehicle-physics__/tire_marks.png"
+	}
+data:extend({marks})
+
+marks = table.deepcopy(marks)
+marks.name = "drifting-tire-marks-faded"
+marks.animation.filename = "__vehicle-physics__/tire_marks_faded.png"
+data:extend({marks})
+
 data:extend({
-marks,
-{
+	{
 		type = "sound",
 		name = "vehphy-squeel-1",
 		filename = "__vehicle-physics__/squeel1.ogg",
 	},
-{
+	{
 		type = "sound",
 		name = "vehphy-squeel-2",
 		filename = "__vehicle-physics__/squeel2.ogg",

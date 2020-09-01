@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: ????
+  Features:
+    - Light tire marks on non-concrete surfaces
   Bugfixes:
     - Fixed dirt driving sound position
   Other:

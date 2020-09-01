@@ -67,17 +67,31 @@ function make_tire_marks(surface,position,speed,unit_number)
 	speed = math.max(0.4, math.min(0.8, speed^0.4*1.2))*0.7
 	local tick = game.tick
 	local tilename = surface.get_tile(position.x,position.y).name
-	if tilename:find("sand") or tilename:find("desert") or tilename:find("dirt") then
-		return
-	end
-	surface.create_entity{name = "drifting-tire-marks", position = position}
-	if 	(global.geigers[unit_number] or 0)+12  < tick then
-		local rnd = math.ceil(math.random()*2.99999+0.000001)
-		--local rnd = math.floor(math.random()*1.99)
-		global.geigers[unit_number] = tick
-		
-		surface.play_sound({path = "vehphy-squeel-"..rnd, volume_modifier =speed, position = position})
-		
+	if tilename:find("sand") or
+	   tilename:find("desert") or
+	   tilename:find("dirt") or
+	   tilename:find("landfill") or
+	   tilename:find("grass") then
+		surface.create_entity{name = "drifting-tire-marks-faded", position = position}
+		if 	(global.geigers[unit_number] or 0)+12  < tick then
+			local volume = math.max(0.2, math.min(0.8, speed^0.4*1.2))*0.75
+			--local rnd = math.ceil(math.random()*2.99999+0.000001)
+			--local rnd = math.floor(math.random()*1.99)
+			global.geigers[unit_number] = tick
+			
+			surface.play_sound({path = "vehphy-dirt", volume_modifier =volume, position = position})
+			
+		end
+	else
+		surface.create_entity{name = "drifting-tire-marks", position = position}
+		if 	(global.geigers[unit_number] or 0)+12  < tick then
+			local rnd = math.ceil(math.random()*2.99999+0.000001)
+			--local rnd = math.floor(math.random()*1.99)
+			global.geigers[unit_number] = tick
+			
+			surface.play_sound({path = "vehphy-squeel-"..rnd, volume_modifier =speed, position = position})
+			
+		end
 	end
 end
 
@@ -217,17 +231,19 @@ script.on_event(defines.events.on_tick, function(event)
 					tbl.entity.orientation = entity_orientation
 					tbl.orientation = entity_orientation
 				else
-					if not flycar and concrete_tiles >=1 then
-						local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / 3)
-						--game.print("manuver: "..manuverability)
-						local orientation_change = entity_orientation - tbl.orientation
-						if orientation_change < -0.5 then
-							orientation_change = orientation_change +1
-						elseif orientation_change > 0.5 then
-							orientation_change = orientation_change -1
+					if not flycar then
+						if concrete_tiles >=1 then
+							local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / 3)
+							--game.print("manuver: "..manuverability)
+							local orientation_change = entity_orientation - tbl.orientation
+							if orientation_change < -0.5 then
+								orientation_change = orientation_change +1
+							elseif orientation_change > 0.5 then
+								orientation_change = orientation_change -1
+							end
+							entity_orientation = entity_orientation - orientation_change * (1-manuverability)
+							tbl.entity.orientation = entity_orientation
 						end
-						entity_orientation = entity_orientation - orientation_change * (1-manuverability)
-						tbl.entity.orientation = entity_orientation
 						if not make_no_tire_marks then
 							local temp_pos = {x = pos.x+0.05, y = pos.y + 0.1}
 							local temp_last_pos = {x = tbl.last_pos.x+0.05, y = tbl.last_pos.y + 0.1}
@@ -248,16 +264,6 @@ script.on_event(defines.events.on_tick, function(event)
 								make_tire_marks(surface, projection((entity_orientation+0.4)%1,1.2, temp_pos),speed,unit_number)
 								make_tire_marks(surface, projection((entity_orientation+0.6)%1,1.2, temp_pos),speed,unit_number)
 							end
-						end
-					elseif not flycar then
-						if 	(global.geigers[unit_number] or 0)+12  < event.tick then
-							local volume = math.max(0.2, math.min(0.8, speed^0.4*1.2))*0.75
-							--local rnd = math.ceil(math.random()*2.99999+0.000001)
-							--local rnd = math.floor(math.random()*1.99)
-							global.geigers[unit_number] = event.tick
-							
-							tbl.entity.surface.play_sound({path = "vehphy-dirt", volume_modifier =volume, position = tbl.entity.position})
-							
 						end
 					end
 					tbl.orientation = entity_orientation
