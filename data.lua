@@ -32,28 +32,28 @@ marks.animation =
       frame_count = 1,
       direction_count = 1,
 	  scale = 0.5,
-      filename = "__vehicle_physics__/tire_marks.png"
+      filename = "__vehicle-physics__/tire_marks.png"
     }
 data:extend({
 marks,
 {
 		type = "sound",
 		name = "vehphy-squeel-1",
-		filename = "__vehicle_physics__/squeel1.ogg",
+		filename = "__vehicle-physics__/squeel1.ogg",
 	},
 {
 		type = "sound",
 		name = "vehphy-squeel-2",
-		filename = "__vehicle_physics__/squeel2.ogg",
+		filename = "__vehicle-physics__/squeel2.ogg",
 	},
 	{
 		type = "sound",
 		name = "vehphy-squeel-3",
-		filename = "__vehicle_physics__/squeel3.ogg",
+		filename = "__vehicle-physics__/squeel3.ogg",
 	},
 	{
 		type = "sound",
 		name = "vehphy-dirt",
-		filename = "__vehicle_physics__/dirt.ogg",
+		filename = "__vehicle-physics__/dirt.ogg",
 	},
 })

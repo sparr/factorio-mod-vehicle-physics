@@ -256,7 +256,7 @@ script.on_event(defines.events.on_tick, function(event)
 							--local rnd = math.floor(math.random()*1.99)
 							global.geigers[unit_number] = event.tick
 							
-							tbl.entity.surface.play_sound({path = "vehphy-dirt", volume_modifier =volume, position = position})
+							tbl.entity.surface.play_sound({path = "vehphy-dirt", volume_modifier =volume, position = tbl.entity.position})
 							
 						end
 					end

@@ -1,6 +1,22 @@
-0.17.3
-- Reduced volume
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: ????
+  Bugfixes:
+    - Fixed dirt driving sound position
+  Other:
+    - Mod adopted by Sparr
+    - Mod name changed from vehicle_physics to vehicle-physics
+    - Changelog reformatted
+    - Code cleanup
 
-0.17.2
-- Added sounds
-- Fixed a bug when a tank was destroyed
+---------------------------------------------------------------------------------------------------
+Version: 0.17.3
+  Changes:
+    - Reduced volume
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.2
+  Features:
+    - Added sounds
+  Bugfixes:
+    - Fixed a bug when a tank was destroyed

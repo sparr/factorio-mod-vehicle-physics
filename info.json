@@ -1,13 +1,16 @@
 {
-    "name": "vehicle_physics",
-    "version": "0.18.3",
+    "name": "vehicle-physics",
+    "version": "1.0.0",
     "title": "Vehicle Physics",
-	"description": "Realistic driving physics.. supports airplanes",
-    "author": "OwnlyMe",
-    "factorio_version": "0.18",
+    "description": "Realistic driving physics. Supports airplanes",
+    "author": "Sparr",
+    "contact": "sparr0@gmail.com",
+    "homepage": "https://github.com/sparr/factorio-mod-vehicle-physics",
+    "factorio_version": "1.0",
     "dependencies": [
-		"?Hovercrafts",
-		"?Raven",
-		"?raven_mk2"
-		]
+        "base >= 1.0",
+        "(?)Hovercrafts",
+        "(?)Raven",
+        "(?)raven_mk2"
+    ]
 }
