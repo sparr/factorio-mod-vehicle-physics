@@ -8,15 +8,16 @@ local exclusions = {
 	["lcraft-entity"] = true, --hovercrafts
 }
 function is_flycar(entity_name)
-	if global.is_flycar[entity_name] == nil then
-		if game.entity_prototypes[entity_name].collision_mask and game.entity_prototypes[entity_name].collision_mask["player-layer"] then
-			global.is_flycar[entity_name] = false
+	if storage.is_flycar[entity_name] == nil then
+		-- 2.0 turned the flat mask into a table of named layers, and player-layer into player
+		if prototypes.entity[entity_name].collision_mask.layers.player then
+			storage.is_flycar[entity_name] = false
 		else
-			global.is_flycar[entity_name] = true
+			storage.is_flycar[entity_name] = true
 		end
-		--game.print(entity_name .. " is "..tostring(global.is_flycar[entity_name]))
+		--game.print(entity_name .. " is "..tostring(storage.is_flycar[entity_name]))
 	end
-	return global.is_flycar[entity_name]
+	return storage.is_flycar[entity_name]
 end
 
 function projection ( orientation, distance, position)
@@ -26,40 +27,45 @@ local temp_y =  math.sin((orientation+0.75)*2*math.pi)*distance
 return{x=temp_x+position.x, y = temp_y+position.y}
 end
 
+--- Start tracking a car, a tick after somebody got into it. The wait is deliberate: at
+--- the moment the event fires the vehicle has not moved yet, and the physics wants a
+--- position and speed to work from.
+---@param entity LuaEntity
+local function start_tracking(entity)
+	storage.cars[entity.unit_number] = {
+		entity = entity,
+		drift = {x=0,y=0},
+		position = entity.position,
+		idle_ticks = 0,
+		orientation = entity.orientation,
+		last_pos = entity.position,
+		last_speed = entity.speed,
+	}
+	if entity.speed ~= 0 then
+		storage.cars[entity.unit_number].drift = projection(entity.orientation, entity.speed)
+	end
+end
+
 script.on_event(defines.events.on_player_driving_changed_state, function(event)
 if event.entity and event.entity.type == "car" and not exclusions[event.entity.name] then
 	if not event.entity.get_driver() then
-		global.cars[event.entity.unit_number] = nil
-		global.tanks[event.entity.unit_number] = nil
-	elseif not global.cars[event.entity.unit_number] then
+		storage.cars[event.entity.unit_number] = nil
+		storage.tanks[event.entity.unit_number] = nil
+	elseif not storage.cars[event.entity.unit_number] then
 		if event.entity.name:find("tank") then
-			global.tanks[event.entity.unit_number] = {entity = event.entity}
+			storage.tanks[event.entity.unit_number] = {entity = event.entity}
 		else
-		--if not is_flycar(event.entity.name) then
-		--	global.cars[event.entity.unit_number] = {entity = event.entity,drift={x=0,y=0}, position = event.entity.position,idle_ticks = 0, orientation = event.entity.orientation, last_pos = event.entity.position}
-		--	if event.entity.speed ~= 0 then
-		--		global.cars[event.entity.unit_number].drift = projection(event.entity.orientation, event.entity.speed)
-		--	end
-		--else
-			if not global.on_tick[event.tick+1] then
-				global.on_tick[event.tick+1] = {}
+			-- The entity itself is remembered, and the work is done next tick in on_tick.
+			-- This used to remember a function to call instead, which a save cannot hold:
+			-- anybody saving in the one tick between getting into a car and the next took
+			-- "cannot serialise lua functions" and lost the game.
+			if not storage.entering[event.tick+1] then
+				storage.entering[event.tick+1] = {}
 			end
-			table.insert(global.on_tick[event.tick+1], {
-				func = function(vars)
-					if vars.entity and vars.entity.valid then
-						global.cars[vars.entity.unit_number] = {entity = vars.entity,drift={x=0,y=0}, position = vars.entity.position,idle_ticks = 0, orientation = vars.entity.orientation, last_pos = vars.entity.position, last_speed = vars.entity.speed}
-						if vars.entity.speed ~= 0 then
-							global.cars[vars.entity.unit_number].drift = projection(vars.entity.orientation, vars.entity.speed)
-						end
-						--game.print(global.cars[vars.entity.unit_number].entity.name)
-					end
-				end,
-				vars = {entity = event.entity}
-			})
+			table.insert(storage.entering[event.tick+1], event.entity)
 		end
 	end
 end
---game.print(event.entity.name)
 end)
 
 
@@ -73,21 +79,21 @@ function make_tire_marks(surface,position,speed,unit_number)
 	   tilename:find("landfill") or
 	   tilename:find("grass") then
 		surface.create_entity{name = "drifting-tire-marks-faded", position = position}
-		if 	(global.geigers[unit_number] or 0)+12  < tick then
+		if 	(storage.geigers[unit_number] or 0)+12  < tick then
 			local volume = math.max(0.2, math.min(0.8, speed^0.4*1.2))*0.75
 			--local rnd = math.ceil(math.random()*2.99999+0.000001)
 			--local rnd = math.floor(math.random()*1.99)
-			global.geigers[unit_number] = tick
+			storage.geigers[unit_number] = tick
 			
 			surface.play_sound({path = "vehphy-dirt", volume_modifier =volume, position = position})
 			
 		end
 	else
 		surface.create_entity{name = "drifting-tire-marks", position = position}
-		if 	(global.geigers[unit_number] or 0)+12  < tick then
+		if 	(storage.geigers[unit_number] or 0)+12  < tick then
 			local rnd = math.ceil(math.random()*2.99999+0.000001)
 			--local rnd = math.floor(math.random()*1.99)
-			global.geigers[unit_number] = tick
+			storage.geigers[unit_number] = tick
 			
 			surface.play_sound({path = "vehphy-squeel-"..rnd, volume_modifier =speed, position = position})
 			
@@ -109,7 +115,7 @@ end
 	--local temp_x = math.sin((orientation+0)*2*math.pi)*distance
 	--local temp_y =  math.sin((orientation+0.75)*2*math.pi)*distance
 script.on_event(defines.events.on_tick, function(event)
-	for unit_number, tbl in pairs(global.tanks) do
+	for unit_number, tbl in pairs(storage.tanks) do
 		if tbl.entity and tbl.entity.valid then
 			local speed = tbl.entity.speed
 			if math.abs(speed)>0.08 and event.tick % math.min(10,math.floor(1/speed*2)) ==0 or math.abs(speed)<0.08 and tbl.entity.riding_state.direction ~= defines.riding.direction.straight and event.tick %5 == 1 then --not really accurate but good enough
@@ -122,10 +128,10 @@ script.on_event(defines.events.on_tick, function(event)
 				end
 			end
 		else
-			global.tanks[unit_number] = nil
+			storage.tanks[unit_number] = nil
 		end
 	end
-	for unit_number, tbl in pairs(global.cars) do
+	for unit_number, tbl in pairs(storage.cars) do
 		--game.print(unit_number)
 		if tbl.entity and tbl.entity.valid then
 			local speed = tbl.entity.speed
@@ -337,30 +343,39 @@ script.on_event(defines.events.on_tick, function(event)
 			tbl.position = tbl.entity.position
 			tbl.last_speed = speed
 		else
-			global.cars[unit_number] = nil
+			storage.cars[unit_number] = nil
 		end
 	end	
-	if global.on_tick[event.tick] then
-		for _, tbl in pairs(global.on_tick[event.tick]) do
-			tbl.func(tbl.vars)
+	if storage.entering[event.tick] then
+		for _, entity in pairs(storage.entering[event.tick]) do
+			if entity.valid then start_tracking(entity) end
 		end
-		global.on_tick[event.tick] = nil
+		storage.entering[event.tick] = nil
 	end
 end)
 
 script.on_init(function()
-	global.on_tick = {}
-	global.cars = {}
-	global.tanks = {}
-	global.is_flycar = {}
-	global.geigers = {}
-	global.version = 2
+	storage.entering = {}
+	storage.cars = {}
+	storage.tanks = {}
+	storage.is_flycar = {}
+	storage.geigers = {}
+	storage.version = 3
 end)
 script.on_configuration_changed(function()
-	if global.version == 1 then
-		global.geigers = {}
-		global.version = 2
+	if storage.version == 1 then
+		storage.geigers = {}
+		storage.version = 2
 	end
+	if storage.version == 2 then
+		-- on_tick held functions to call, which is why no save could ever hold one
+		storage.on_tick = nil
+		storage.entering = {}
+		storage.version = 3
+	end
+	-- collision masks were rewritten in 2.0, so what was worked out under 1.1 is no
+	-- longer the answer to the same question
+	storage.is_flycar = {}
 end)
 
 function distance(pos1,pos2)

@@ -1,7 +1,11 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.1
-Date: ????
-  Changes:
+Version: 2.1.0
+Date: 2026-09-07
+  Other:
+    - Update for Factorio 2.1
+  Bugfixes:
+    - Getting into a car no longer risks breaking the save. A save taken in the tick
+      after somebody entered a vehicle failed outright, and took the game down with it
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.0
 Date: 2022-01-01
