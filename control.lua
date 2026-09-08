@@ -335,6 +335,7 @@ if script.active_mods["factorio-test"] and script.active_mods["vp-tests"] then
 		"test.ft.driving",
 		"test.ft.tracking",
 		"test.ft.kinds",
+		"test.ft.measure",
 	}, {
 		load_luassert = true,
 		game_speed = 100,

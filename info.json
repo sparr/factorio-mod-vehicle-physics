@@ -10,7 +10,18 @@
     "dependencies": [
         "(?)Hovercrafts",
         "(?)Raven",
-        "(?)raven_mk2"
+        "(?)raven_mk2",
+        "(?)cargo-ships",
+        "(?)Aircraft",
+        "(?)Aircraft-space-age",
+        "(?)aai-vehicles-ironclad",
+        "(?)aai-vehicles-hauler",
+        "(?)aai-vehicles-miner",
+        "(?)aai-vehicles-warden",
+        "(?)aai-vehicles-chaingunner",
+        "(?)aai-vehicles-laser-tank",
+        "(?)aai-vehicles-flame-tank",
+        "(?)HelicopterRevival"
     ],
     "package": {
         "ignore": [

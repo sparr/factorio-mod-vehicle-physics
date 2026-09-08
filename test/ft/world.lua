@@ -127,6 +127,80 @@ function world.patch(tile)
     return patch
 end
 
+--- A big flat square of one surface, made once and reused. The measurement fixtures drive
+--- for hundreds of tiles, which no ordinary patch is large enough to hold, and painting a
+--- fresh one per trial would cost more than the measuring does.
+local arenas = {}
+local ARENA = 420
+
+---@param tile string
+function world.arena(tile)
+    prepare()
+    if arenas[tile] then
+        local arena = arenas[tile]
+        for _, entity in pairs(world.surface.find_entities(arena.area)) do
+            if entity.valid and entity.type ~= "character" then entity.destroy() end
+        end
+        return arena
+    end
+
+    local index = 0
+    for _ in pairs(arenas) do index = index + 1 end
+    local left, top = 3000 + index * (ARENA + 100), 3000
+    local surface = world.surface
+    surface.request_to_generate_chunks({ x = left + ARENA / 2, y = top + ARENA / 2 },
+                                       math.ceil(ARENA / 32) + 2)
+    surface.force_generate_chunk_requests()
+
+    local tiles = {}
+    for x = left, left + ARENA - 1 do
+        for y = top, top + ARENA - 1 do
+            tiles[#tiles + 1] = { name = tile, position = { x, y } }
+        end
+    end
+    surface.set_tiles(tiles)
+
+    arenas[tile] = {
+        surface = surface,
+        centre = { x = left + ARENA / 2, y = top + ARENA / 2 },
+        area = { { left, top }, { left + ARENA, top + ARENA } },
+    }
+    return arenas[tile]
+end
+
+--- Put a fuelled vehicle in the middle of an arena with the player at the wheel
+---@param arena table
+---@param name string
+function world.launch(arena, name)
+    local player = game.players[1]
+    world.controls = nil
+    -- Getting out is not always possible: stepping out of a boat means stepping onto
+    -- water, which the game refuses, and the player stays aboard. Whatever they were in
+    -- is a test vehicle and disposable, so it goes.
+    if player.driving then
+        local previous = player.vehicle
+        player.driving = false
+        if player.driving and previous and previous.valid then previous.destroy() end
+    end
+    local car = arena.surface.create_entity{ name = name, position = arena.centre,
+                                             force = "player" }
+    assert(car, "could not place a " .. name)
+    car.insert{ name = "nuclear-fuel", count = 1 }
+    car.orientation = 0
+    player.teleport(arena.centre, arena.surface)
+    player.driving = true
+    assert.equals(name, player.vehicle and player.vehicle.name,
+        "the player ended up in the wrong vehicle, or none")
+    return car
+end
+
+--- Hold the controls, as patch.hold does
+function world.hold(acceleration, direction)
+    world.controls = { acceleration = acceleration,
+                       direction = direction or defines.riding.direction.straight }
+    game.players[1].riding_state = world.controls
+end
+
 --- The mod's own record of a car, or nil if it is not tracking it
 ---@param car LuaEntity
 function world.tracked(car)

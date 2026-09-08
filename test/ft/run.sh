@@ -6,6 +6,10 @@
 #   test/ft/run.sh "drifts"              # only tests matching a Lua pattern
 #   test/ft/run.sh -g --no-auto-start    # open a window and pick tests by hand
 #   test/ft/run.sh -g --game-speed 1     # open a window and watch
+#   test/ft/run.sh --tag-whitelist measure --tag-blacklist nothing
+#                                       # the measuring run, which is not a test. The
+#                                       # blacklist has to be overridden as well as the
+#                                       # whitelist given, or the config's blacklist wins
 #
 # VP_FACTORIO    the game binary, if it is not where Steam puts it here
 # VP_FT_DATA     the throwaway data directory the run happens in
