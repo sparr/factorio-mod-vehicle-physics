@@ -30,6 +30,18 @@ describe("pulling away from a standstill", function()
                 assert.is_true(boat_speeds[1] < car_speeds[1] * 0.4,
                     ("off the line the boat did %.4f against the car's %.4f")
                         :format(boat_speeds[1], car_speeds[1]))
+
+                -- and it eases in rather than jumping in. The game's acceleration is at
+                -- its hardest from a standstill -- a car gains more in its first tick
+                -- than in its next two together -- and simply scaling that down keeps
+                -- the same jump, only smaller.
+                local first = boat_speeds[1]
+                local second = boat_speeds[2] - boat_speeds[1]
+                assert.is_true(first < second,
+                    ("the boat's first tick gained %.5f and its second %.5f, so it is "
+                     .. "still jumping off the line"):format(first, second))
+                assert.is_true(car_speeds[1] > (car_speeds[2] - car_speeds[1]),
+                    "a car is supposed to keep the game's punch off the line")
             end)
         end)
     end)

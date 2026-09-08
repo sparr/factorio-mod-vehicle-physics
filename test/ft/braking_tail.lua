@@ -49,7 +49,12 @@ describe("the end of a brake", function()
             assert.is_not_nil(last, vehicle .. " never came to a stop")
             print(("TAIL %-14s stopped at tick %d, last step %.5f, the one before %.5f")
                 :format(vehicle, at, last, previous))
-            assert.is_true(last < previous * 3,
+            -- Either the step is in keeping with the one before it, or it is too small
+            -- to feel at all. A kind that brakes at a tenth decays geometrically, so its
+            -- final step is always a large multiple of the step before -- but at five
+            -- thousandths of a tile per tick, which is a fortieth of a tile per second,
+            -- there is nothing there to feel.
+            assert.is_true(last < previous * 3 or last < 0.005,
                 ("%s dropped %.5f into the stop after a step of %.5f, which is a lurch")
                     :format(vehicle, last, previous))
         end)
@@ -63,5 +68,9 @@ describe("the end of a brake", function()
     --- stood out a mile: it went from a tenth of a tile per tick to nothing in one tick.
     test("ramps into it for a boat too", function()
         ramps_into_the_stop("vp-tests-boat", "water")
+    end)
+
+    test("and for an aircraft, which brakes gentlest of all", function()
+        ramps_into_the_stop("vp-tests-plane", "refined-concrete")
     end)
 end)

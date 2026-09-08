@@ -6,8 +6,16 @@ local tracking = require("lib.tracking")
 local COLLISION_DROP = 0.25
 
 --- Scaling the brake means each tick takes a share of what is left, which approaches a
---- standstill without ever arriving at one. Below this it is called stopped.
+--- standstill without ever arriving at one. Below this it is called stopped -- scaled by
+--- how hard the kind brakes, or the cutoff is worth seven of an aircraft's braking ticks
+--- and it arrives at a standstill off a cliff.
 local AT_REST = 0.005
+
+--- The game's acceleration is at its strongest from a standstill: a car gains more in its
+--- first tick than in its next two together. Scaling that down keeps the same shape, so a
+--- boat still leaves with its largest step of the whole run. Easing the scale in over the
+--- first few ticks of movement is what makes it pull away rather than jump away.
+local LAUNCH_TICKS = 8
 
 --- A place to try the mod out by hand, present only when the test prototypes are and the
 --- suite is not running. It is called into from the handlers below rather than
@@ -119,7 +127,9 @@ script.on_event(defines.events.on_tick, function(event)
 			local change = speed - was
 			if pedal == defines.riding.acceleration.accelerating
 				and math.abs(speed) > math.abs(was) and scale.accelerating ~= 1 then
-				speed = was + change * scale.accelerating
+				tbl.launch = (was == 0) and 1 or ((tbl.launch or 0) + 1)
+				local easing = math.min(1, tbl.launch / LAUNCH_TICKS)
+				speed = was + change * scale.accelerating * easing
 				tbl.entity.speed = speed
 			-- The game finishes a brake by taking the last of the speed off in one go,
 			-- and that wants slowing down like the rest of the brake, or a vehicle that
@@ -130,7 +140,7 @@ script.on_event(defines.events.on_tick, function(event)
 				and math.abs(speed) < math.abs(was) and scale.braking ~= 1
 				and math.abs(change) < COLLISION_DROP then
 				speed = was + change * scale.braking
-				if math.abs(speed) < AT_REST then speed = 0 end
+				if math.abs(speed) < AT_REST * scale.braking then speed = 0 end
 				tbl.entity.speed = speed
 			end
 			if speed == 0 and tbl.last_speed ~= 0 then
