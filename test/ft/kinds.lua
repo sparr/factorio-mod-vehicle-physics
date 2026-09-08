@@ -227,14 +227,16 @@ describe("a boat that has hit the shore", function()
         surface.set_tiles(beach)
 
         local boat = patch.drive("vp-tests-boat")
-        boat.teleport({ patch.left + 30, patch.top + 48 })
+        -- close enough that it reaches the beach with the gentler acceleration a boat
+        -- now has, and still far enough to be moving properly when it arrives
+        boat.teleport({ patch.left + 42, patch.top + 48 })
         patch.player.teleport(boat.position, surface)
         boat.orientation = 0.25
         patch.hold(ACCELERATE)
 
         -- drive at the beach until something stops it
         local hit_at, speed_before = nil, 0
-        for sample = 1, 200 do
+        for sample = 1, 400 do
             after_ticks(sample, function()
                 if not hit_at and boat.valid then
                     if boat.speed == 0 and sample > 20 then hit_at = sample
@@ -242,7 +244,7 @@ describe("a boat that has hit the shore", function()
                 end
             end)
         end
-        after_ticks(201, function()
+        after_ticks(401, function()
             assert.is_not_nil(hit_at, "the boat never reached the shore")
             assert.is_true(speed_before > 0.1,
                 ("setup: it was barely moving when it hit, %.3f"):format(speed_before))

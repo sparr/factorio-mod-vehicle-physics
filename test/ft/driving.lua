@@ -13,18 +13,16 @@ local LEFT = defines.riding.direction.left
 local STRAIGHT = defines.riding.direction.straight
 
 describe("getting into a car", function()
-    test("is noticed, a tick later", function()
+    test("is noticed at once, not a tick later", function()
         local patch = world.patch("refined-concrete")
         local car = patch.drive()
-        -- the mod waits a tick on purpose: at the moment the event fires the car has
-        -- not moved, and the physics wants a position and a speed to work from
-        assert.is_nil(world.tracked(car), "tracked before the tick it waits for")
-        after_ticks(2, function()
-            local record = world.tracked(car)
-            assert.is_not_nil(record, "the car was never picked up")
-            assert.equals(car.unit_number, record.entity.unit_number)
-            assert.same({ x = 0, y = 0 }, record.drift)
-        end)
+        -- Registration used to wait a tick. That tick was one tick of the game's own
+        -- acceleration going by unscaled, which a kind that is supposed to pull away
+        -- gently could not afford.
+        local record = world.tracked(car)
+        assert.is_not_nil(record, "the car was not picked up when it was boarded")
+        assert.equals(car.unit_number, record.entity.unit_number)
+        assert.same({ x = 0, y = 0 }, record.drift)
     end)
 
     test("puts nothing in the save that a save cannot hold", function()

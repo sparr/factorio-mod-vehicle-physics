@@ -1,6 +1,14 @@
 local geometry = require("lib.geometry")
 local tracking = require("lib.tracking")
 
+--- A brake finishing its work takes off a fraction of a tile per tick. Losing more than
+--- this in one tick is something being hit, whatever the driver happens to be pressing.
+local COLLISION_DROP = 0.25
+
+--- Scaling the brake means each tick takes a share of what is left, which approaches a
+--- standstill without ever arriving at one. Below this it is called stopped.
+local AT_REST = 0.005
+
 --- A place to try the mod out by hand, present only when the test prototypes are and the
 --- suite is not running. It is called into from the handlers below rather than
 --- registering its own, since a mod gets one handler per event.
@@ -22,14 +30,12 @@ if event.entity and event.entity.type == "car" and not tracking.exclusions[event
 		if event.entity.name:find("tank") then
 			storage.tanks[event.entity.unit_number] = {entity = event.entity}
 		else
-			-- The entity itself is remembered, and the work is done next tick in on_tick.
-			-- This used to remember a function to call instead, which a save cannot hold:
-			-- anybody saving in the one tick between getting into a car and the next took
-			-- "cannot serialise lua functions" and lost the game.
-			if not storage.entering[event.tick+1] then
-				storage.entering[event.tick+1] = {}
-			end
-			table.insert(storage.entering[event.tick+1], event.entity)
+			-- Straight away, not a tick later as this used to. A tick later is one tick
+			-- of the game's own acceleration going by unscaled, and a boat that should
+			-- pull away at a quarter of a car's rate left the line at exactly a car's
+			-- rate and then crawled. storage.entering survives for saves written by a
+			-- version that queued them.
+			tracking.start(event.entity)
 		end
 	end
 end
@@ -115,9 +121,16 @@ script.on_event(defines.events.on_tick, function(event)
 				and math.abs(speed) > math.abs(was) and scale.accelerating ~= 1 then
 				speed = was + change * scale.accelerating
 				tbl.entity.speed = speed
-			elseif pedal == defines.riding.acceleration.braking and speed ~= 0
-				and math.abs(speed) < math.abs(was) and scale.braking ~= 1 then
+			-- The game finishes a brake by taking the last of the speed off in one go,
+			-- and that wants slowing down like the rest of the brake, or a vehicle that
+			-- brakes gently arrives at a standstill from a tenth of a tile per tick. Only
+			-- a drop too large to be braking at all is left to stand, which is what a
+			-- collision looks like.
+			elseif pedal == defines.riding.acceleration.braking
+				and math.abs(speed) < math.abs(was) and scale.braking ~= 1
+				and math.abs(change) < COLLISION_DROP then
 				speed = was + change * scale.braking
+				if math.abs(speed) < AT_REST then speed = 0 end
 				tbl.entity.speed = speed
 			end
 			if speed == 0 and tbl.last_speed ~= 0 then
@@ -265,7 +278,12 @@ script.on_event(defines.events.on_tick, function(event)
 					-- aircraft has nothing to bite on and barely scrubs at all. Without
 					-- the division a kind that drifts ten times as much also scrubbed ten
 					-- times as hard and slammed to a stop out of a slide.
-					local scrub = geometry.distance(pos, new_pos) * 0.01 / handling.drift
+					-- Never more than a tenth of what it is doing: unclamped, this took
+					-- the whole of a slow vehicle's speed in one tick and clamped at
+					-- zero, which is the lurch at the end of a deceleration -- and it
+					-- did it to cars as much as to anything else.
+					local scrub = math.min(geometry.distance(pos, new_pos) * 0.01
+					                       / handling.drift, math.abs(speed) * 0.1)
 					if speed > 0 then
 						speed = math.max(0, speed - scrub)
 						tbl.entity.speed = speed
@@ -384,6 +402,8 @@ if script.active_mods["factorio-test"] and script.active_mods["vp-tests"] then
 		"test.ft.driving",
 		"test.ft.tracking",
 		"test.ft.kinds",
+		"test.ft.braking_tail",
+		"test.ft.launch_off_the_line",
 		"test.ft.sandbox_check",
 		"test.ft.measure",
 	}, {

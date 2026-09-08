@@ -8,6 +8,10 @@ Date: ????
       quarter as fast
     - Neither boats nor aircraft leave tire marks, and neither throws up dust
   Bugfixes:
+    - A boat or aircraft pulls away gently from the very first tick. It used to leave the
+      line at exactly a car's rate for one tick before the physics took hold
+    - Coming to a stop no longer lurches. A vehicle that brakes gently was having the last
+      of its speed taken off in a single step
     - A vehicle stopped by hitting something stays stopped. It used to be handed back most
       of the speed the collision took off it, and leapt away from whatever it had hit
     - A drifting boat is no longer pushed onto land, where it could not move at all. The
