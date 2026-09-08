@@ -1,0 +1,11 @@
+{
+  "name": "vehicle-physics-tests",
+  "private": true,
+  "description": "Test tooling only. The mod itself is the Lua alongside this file.",
+  "scripts": {
+    "test": "test/ft/run.sh"
+  },
+  "devDependencies": {
+    "factorio-test-cli": "^3.6.0"
+  }
+}

@@ -1,3 +1,5 @@
+local geometry = require("lib.geometry")
+
 local exclusions = {
 	["raven2-1"] = true, -- my custom raven mod
 	["raven2-2"] = true, -- my custom raven mod
@@ -20,13 +22,6 @@ function is_flycar(entity_name)
 	return storage.is_flycar[entity_name]
 end
 
-function projection ( orientation, distance, position)
-if not position then position = {x=0,y=0} end
-local temp_x = math.sin((orientation+0)*2*math.pi)*distance
-local temp_y =  math.sin((orientation+0.75)*2*math.pi)*distance
-return{x=temp_x+position.x, y = temp_y+position.y}
-end
-
 --- Start tracking a car, a tick after somebody got into it. The wait is deliberate: at
 --- the moment the event fires the vehicle has not moved yet, and the physics wants a
 --- position and speed to work from.
@@ -42,7 +37,7 @@ local function start_tracking(entity)
 		last_speed = entity.speed,
 	}
 	if entity.speed ~= 0 then
-		storage.cars[entity.unit_number].drift = projection(entity.orientation, entity.speed)
+		storage.cars[entity.unit_number].drift = geometry.projection(entity.orientation, entity.speed)
 	end
 end
 
@@ -101,10 +96,7 @@ function make_tire_marks(surface,position,speed,unit_number)
 	end
 end
 
-function orientation_from_coords(coords)
-return (math.atan2(coords.x,coords.y)/math.pi/2-0.5)*-1
-end
-	--local distance = distance({x=0,y=0},coords)
+	--local distance = geometry.distance({x=0,y=0},coords)
 	--local temp_x = coords.x/distance
 	--local temp_y =  coords.y/distance
 	--temp_x = math.asin(temp_x)/math.pi/2
@@ -194,9 +186,9 @@ script.on_event(defines.events.on_tick, function(event)
 							
 							local orientation_difference
 							if speed >= 0 then
-								orientation_difference = math.abs(orientation_from_coords({x=tbl.drift.x, y = tbl.drift.y}) - entity_orientation)
+								orientation_difference = math.abs(geometry.orientation_from_coords({x=tbl.drift.x, y = tbl.drift.y}) - entity_orientation)
 							else
-								orientation_difference = math.abs(orientation_from_coords({x=tbl.drift.x, y = tbl.drift.y}) - (entity_orientation+0.5)%1) 
+								orientation_difference = math.abs(geometry.orientation_from_coords({x=tbl.drift.x, y = tbl.drift.y}) - (entity_orientation+0.5)%1) 
 							end
 							if orientation_difference > 0.971 then
 								orientation_difference = -(orientation_difference-1)
@@ -253,22 +245,22 @@ script.on_event(defines.events.on_tick, function(event)
 						if not make_no_tire_marks then
 							local temp_pos = {x = pos.x+0.05, y = pos.y + 0.1}
 							local temp_last_pos = {x = tbl.last_pos.x+0.05, y = tbl.last_pos.y + 0.1}
-							local distance_to_last = distance(tbl.last_pos,pos)
+							local distance_to_last = geometry.distance(tbl.last_pos,pos)
 							local surface = tbl.entity.surface
 							if distance_to_last > 0.35 then
-								make_tire_marks(surface, projection((entity_orientation+0.4)%1,1.2, {x=(pos.x+temp_last_pos.x*2)/3,y=(temp_pos.y+temp_last_pos.y*2)/3}),speed,unit_number)
-								make_tire_marks(surface, projection((entity_orientation+0.6)%1,1.2, {x=(pos.x+temp_last_pos.x*2)/3,y=(temp_pos.y+temp_last_pos.y*2)/3}),speed,unit_number)
-								make_tire_marks(surface, projection((entity_orientation+0.4)%1,1.2, {x=(pos.x*2+temp_last_pos.x)/3,y=(temp_pos.y*2+temp_last_pos.y)/3}),speed,unit_number)
-								make_tire_marks(surface, projection((entity_orientation+0.6)%1,1.2, {x=(pos.x*2+temp_last_pos.x)/3,y=(temp_pos.y*2+temp_last_pos.y)/3}),speed,unit_number)
-								--game.print(distance(tbl.last_pos,pos))
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.4)%1,1.2, {x=(pos.x+temp_last_pos.x*2)/3,y=(temp_pos.y+temp_last_pos.y*2)/3}),speed,unit_number)
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.6)%1,1.2, {x=(pos.x+temp_last_pos.x*2)/3,y=(temp_pos.y+temp_last_pos.y*2)/3}),speed,unit_number)
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.4)%1,1.2, {x=(pos.x*2+temp_last_pos.x)/3,y=(temp_pos.y*2+temp_last_pos.y)/3}),speed,unit_number)
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.6)%1,1.2, {x=(pos.x*2+temp_last_pos.x)/3,y=(temp_pos.y*2+temp_last_pos.y)/3}),speed,unit_number)
+								--game.print(geometry.distance(tbl.last_pos,pos))
 							elseif distance_to_last > 0.2 then
-								make_tire_marks(surface, projection((entity_orientation+0.4)%1,1.2, {x=(pos.x+temp_last_pos.x)/2,y=(temp_pos.y+temp_last_pos.y+0.1)/2}),speed,unit_number)
-								make_tire_marks(surface, projection((entity_orientation+0.6)%1,1.2, {x=(pos.x+temp_last_pos.x)/2,y=(temp_pos.y+temp_last_pos.y+0.1)/2}),speed,unit_number)
-								--game.print(distance(tbl.last_pos,pos))
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.4)%1,1.2, {x=(pos.x+temp_last_pos.x)/2,y=(temp_pos.y+temp_last_pos.y+0.1)/2}),speed,unit_number)
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.6)%1,1.2, {x=(pos.x+temp_last_pos.x)/2,y=(temp_pos.y+temp_last_pos.y+0.1)/2}),speed,unit_number)
+								--game.print(geometry.distance(tbl.last_pos,pos))
 							end
 							if distance_to_last > 0.05 then
-								make_tire_marks(surface, projection((entity_orientation+0.4)%1,1.2, temp_pos),speed,unit_number)
-								make_tire_marks(surface, projection((entity_orientation+0.6)%1,1.2, temp_pos),speed,unit_number)
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.4)%1,1.2, temp_pos),speed,unit_number)
+								make_tire_marks(surface, geometry.projection((entity_orientation+0.6)%1,1.2, temp_pos),speed,unit_number)
 							end
 						end
 					end
@@ -281,14 +273,14 @@ script.on_event(defines.events.on_tick, function(event)
 					
 					local new_pos = {x=tbl.position.x+drift_x,y=tbl.position.y+drift_y}
 					if speed > 0 then
-						speed = math.max(0, speed-distance(pos, new_pos)*0.01)
+						speed = math.max(0, speed-geometry.distance(pos, new_pos)*0.01)
 						tbl.entity.speed = speed
 					elseif speed < 0 then
-						speed = math.min(0, speed+distance(pos, new_pos)*0.01)
+						speed = math.min(0, speed+geometry.distance(pos, new_pos)*0.01)
 						tbl.entity.speed = speed
 					end
-					--game.print(-distance(pos, new_pos)*0.01)
-					--game.print(distance(pos, new_pos))
+					--game.print(-geometry.distance(pos, new_pos)*0.01)
+					--game.print(geometry.distance(pos, new_pos))
 					tbl.drifting = (tbl.drifting or 0) + 1
 					--game.print(game.tick)
 					if not flycar and event.tick % 4==2 and concrete_tiles == 0 then-- (drift_x^2+drift_y^2)^0.5 > required_drift*4.5 then
@@ -309,7 +301,7 @@ script.on_event(defines.events.on_tick, function(event)
 					--local rocks = tbl.entity.surface.find_entities_filtered { type = "simple-entity", area = {{new_pos.x-1,new_pos.y-1},{new_pos.x+1,new_pos.y+1}}}
 					if #cliffs >0 then
 						local noncolliding = tbl.entity.surface.find_non_colliding_position("hovercraft-collision", new_pos, 0.1, 0.03)
-						if noncolliding and distance(noncolliding,new_pos)<0.04 then
+						if noncolliding and geometry.distance(noncolliding,new_pos)<0.04 then
 							tbl.entity.teleport(noncolliding)
 							tbl.idle_ticks = 120
 						else
@@ -331,7 +323,7 @@ script.on_event(defines.events.on_tick, function(event)
 					tbl.drift = {x=movement_x*0.9+drift_x*0.1,y=movement_y*0.9+drift_y*0.1}
 					--tbl.drift = {x=new_pos.x-tbl.position.x,y=new_pos.y-tbl.position.y}
 					--if tbl.drifting then
-					--tbl.entity.speed = distance({x=0,y=0},{x=drift_x, y= drift_y})
+					--tbl.entity.speed = geometry.distance({x=0,y=0},{x=drift_x, y= drift_y})
 					tbl.drifting = tbl.drifting and tbl.drifting > 1 and tbl.drifting-1
 					--end
 				end
@@ -378,18 +370,13 @@ script.on_configuration_changed(function()
 	storage.is_flycar = {}
 end)
 
-function distance(pos1,pos2)
-	local x=(pos1.x-pos2.x)^2
-	local y=(pos1.y-pos2.y)^2
-	return(x+y)^0.5
-end
-function max_range(pos1,pos2,range)
-	local distance = distance(pos1,pos2)
-	pos2.x = pos2.x-pos1.x
-	pos2.y = pos2.y-pos1.y
-	pos2.x=pos2.x*math.min(1,range/distance)
-	pos2.y=pos2.y*math.min(1,range/distance)
-	pos1.x=pos1.x+pos2.x
-	pos1.y=pos1.y+pos2.y
-	return pos1
+--- vp-tests is never published, so this can never fire on a player's machine -- which
+--- matters, because info.json keeps test/ out of the package.
+if script.active_mods["factorio-test"] and script.active_mods["vp-tests"] then
+	require("__factorio-test__/init")({
+		"test.ft.driving",
+	}, {
+		load_luassert = true,
+		game_speed = 100,
+	})
 end

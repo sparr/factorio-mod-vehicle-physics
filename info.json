@@ -11,5 +11,16 @@
         "(?)Hovercrafts",
         "(?)Raven",
         "(?)raven_mk2"
-    ]
+    ],
+    "package": {
+        "ignore": [
+            "test/**",
+            "node_modules/**",
+            ".luarocks/**",
+            ".busted",
+            "package.json",
+            "package-lock.json",
+            "factorio-test.json"
+        ]
+    }
 }
