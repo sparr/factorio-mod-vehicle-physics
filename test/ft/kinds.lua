@@ -256,3 +256,52 @@ describe("a boat that has hit the shore", function()
         end)
     end)
 end)
+
+--- Standing on the brake lets a car's back come round: that is how you drift one. A boat
+--- and an aircraft have no such trick, and braking should not spin them faster than
+--- driving does.
+describe("braking while turning", function()
+    local function turn_rate(vehicle, tile, pedal, done)
+        local patch = world.patch(tile)
+        local car = patch.drive(vehicle)
+        patch.hold(ACCELERATE)
+        after_ticks(150, function()
+            patch.hold(pedal, LEFT)
+            local marks = {}
+            for sample = 1, 60 do
+                after_ticks(sample, function()
+                    if car.valid then marks[sample] = car.orientation end
+                end)
+            end
+            after_ticks(61, function()
+                local total = 0
+                for i = 2, #marks do
+                    local step = (marks[i] - marks[i - 1]) % 1
+                    if step > 0.5 then step = step - 1 end
+                    total = total + math.abs(step)
+                end
+                world.release_controls()
+                done(total / (#marks - 1))
+            end)
+        end)
+    end
+
+    local function compare(vehicle, tile)
+        turn_rate(vehicle, tile, ACCELERATE, function(driving)
+            turn_rate(vehicle, tile, defines.riding.acceleration.braking, function(braking)
+                print(("SPIN %s driving %.6f braking %.6f"):format(vehicle, driving, braking))
+                assert.is_true(braking <= driving * 1.2,
+                    ("%s span at %.6f turns per tick on the brake against %.6f driving")
+                        :format(vehicle, braking, driving))
+            end)
+        end)
+    end
+
+    test("does not spin a boat faster than driving does", function()
+        compare("vp-tests-boat", "water")
+    end)
+
+    test("does not spin an aircraft faster than driving does", function()
+        compare("vp-tests-plane", "refined-concrete")
+    end)
+end)

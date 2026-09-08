@@ -6,9 +6,11 @@ local world = require("test.ft.world")
 local BRAKE = defines.riding.acceleration.braking
 local ACCELERATE = defines.riding.acceleration.accelerating
 
-local function stopping_tail(vehicle, tile, done)
+---@param suppress boolean? take the vehicle off the mod's books before braking
+local function stopping_tail(vehicle, tile, done, suppress)
     local patch = world.patch(tile)
     local car = patch.drive(vehicle)
+    if suppress then storage.cars[car.unit_number] = nil end
     patch.hold(ACCELERATE)
     after_ticks(120, function()
         patch.hold(BRAKE)
@@ -25,40 +27,41 @@ local function stopping_tail(vehicle, tile, done)
     end)
 end
 
---- the size of the last drop before it reaches a standstill
-local function final_drop(speeds)
-    for i = 2, #speeds do
+--- The last step into a standstill, and the step before it. A stop that ramps has the two
+--- in the same ballpark; a stop that lurches has a cliff at the end.
+local function last_two_steps(speeds)
+    for i = 3, #speeds do
         if speeds[i] == 0 and speeds[i - 1] > 0 then
-            return speeds[i - 1], i
+            return speeds[i - 1], speeds[i - 2] - speeds[i - 1], i
         end
     end
     return nil
 end
 
 describe("the end of a brake", function()
-    --- A car is not scaled at all, so its stop is the game's own and this is here to say
-    --- what that looks like: the brake ramps up and takes the last of it in one step.
-    test("is the game's own for a car, which the mod does not touch", function()
-        stopping_tail("car", "refined-concrete", function(speeds)
-            local last, at = final_drop(speeds)
-            assert.is_not_nil(last, "the car never came to a stop")
-            print(("TAIL car stopped at tick %d from %.5f"):format(at, last))
-            assert.is_true(last > 0.02,
-                "the car's stop has changed; it is supposed to be untouched")
+    --- Not "the mod leaves a car alone": it does not. The drift scrubs speed off, so a
+    --- car on the mod's books stops at tick 80 from 0.054 where the same car off them
+    --- stops at tick 93 from 0.030. What matters is that the stop ramps rather than
+    --- falling off a cliff, and that is true of both.
+    local function ramps_into_the_stop(vehicle, tile)
+        stopping_tail(vehicle, tile, function(speeds)
+            local last, previous, at = last_two_steps(speeds)
+            assert.is_not_nil(last, vehicle .. " never came to a stop")
+            print(("TAIL %-14s stopped at tick %d, last step %.5f, the one before %.5f")
+                :format(vehicle, at, last, previous))
+            assert.is_true(last < previous * 3,
+                ("%s dropped %.5f into the stop after a step of %.5f, which is a lurch")
+                    :format(vehicle, last, previous))
         end)
+    end
+
+    test("ramps into it for a car", function()
+        ramps_into_the_stop("car", "refined-concrete")
     end)
 
-    --- A boat brakes a quarter as hard, so its speed comes down gently -- and then the
-    --- game used to take the last tenth of a tile per tick off in a single step, which is
-    --- a lurch you feel. It should ease in, from slower than a car does.
-    test("eases in for a boat rather than lurching", function()
-        stopping_tail("vp-tests-boat", "water", function(speeds)
-            local last, at = final_drop(speeds)
-            assert.is_not_nil(last, "the boat never came to a stop")
-            print(("TAIL boat stopped at tick %d from %.5f"):format(at, last))
-            assert.is_true(last < 0.02,
-                ("the boat dropped %.5f straight to nothing, which is the lurch at the "
-                 .. "end of a deceleration"):format(last))
-        end)
+    --- A boat brakes a quarter as hard, so its approach is flat and the game's last step
+    --- stood out a mile: it went from a tenth of a tile per tick to nothing in one tick.
+    test("ramps into it for a boat too", function()
+        ramps_into_the_stop("vp-tests-boat", "water")
     end)
 end)

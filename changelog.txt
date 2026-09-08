@@ -8,6 +8,9 @@ Date: ????
       quarter as fast
     - Neither boats nor aircraft leave tire marks, and neither throws up dust
   Bugfixes:
+    - Braking no longer makes a boat or aircraft turn faster than driving does. Standing on
+      the brake to let the back come round is how a car is drifted, and neither of them has
+      that trick
     - A boat or aircraft pulls away gently from the very first tick. It used to leave the
       line at exactly a car's rate for one tick before the physics took hold
     - Coming to a stop no longer lurches. A vehicle that brakes gently was having the last

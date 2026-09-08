@@ -214,7 +214,12 @@ script.on_event(defines.events.on_tick, function(event)
 
 					end
 				end
-				if not is_braking then
+				-- The braking branch below is the car's: standing on the brake lets the
+				-- back come round, which is how a car is drifted. A boat and an
+				-- aircraft have no such trick, and skipping this left them turning at
+				-- the game's own rate the moment the brake went on -- so braking made
+				-- them spin faster than not braking did.
+				if not is_braking or kind ~= "ground" then
 					local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / 1.5)
 						* handling.rotate
 					--game.print("manuver: "..manuverability)
