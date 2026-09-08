@@ -8,6 +8,8 @@ Date: ????
       quarter as fast
     - Neither boats nor aircraft leave tire marks, and neither throws up dust
   Bugfixes:
+    - A vehicle stopped by hitting something stays stopped. It used to be handed back most
+      of the speed the collision took off it, and leapt away from whatever it had hit
     - A drifting boat is no longer pushed onto land, where it could not move at all. The
       same keeps a drifting car out of the water
     - The physics applies to a vehicle you were already sitting in when the mod was added

@@ -28,4 +28,13 @@ data:extend{
         key_sequence = "N",
         consuming = "none",
     },
+    -- Getting out of a boat means stepping onto water, which the game refuses, so
+    -- somebody who sails one out into open water cannot get out of it again by any
+    -- means the game offers. This puts them back on the shore.
+    {
+        type = "custom-input",
+        name = "vp-tests-ashore",
+        key_sequence = "B",
+        consuming = "none",
+    },
 }

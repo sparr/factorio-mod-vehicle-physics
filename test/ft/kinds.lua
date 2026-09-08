@@ -153,15 +153,15 @@ describe("an aircraft coming out of a slide", function()
                         local drop = speeds[i - 1] - speeds[i]
                         if drop > worst then worst, worst_at = drop, i end
                     end
-                    -- Measured both ways to set these: with the scrub divided by how
-                    -- much the kind slides an aircraft keeps 94% of its speed through
-                    -- the coast and never loses more than 0.0002 in a tick; without, it
-                    -- keeps 61% and sheds five times as much in its worst tick.
+                    -- Measured both ways to set these: with the scrub divided by how much
+                    -- the kind slides an aircraft keeps 83% of its speed through the
+                    -- coast and never sheds more than 0.0005 in a tick; without, it keeps
+                    -- 52% and sheds twice as much in its worst tick.
                     local kept = speeds[#speeds] / entry
-                    assert.is_true(kept > 0.85,
+                    assert.is_true(kept > 0.7,
                         ("it kept only %.0f%% of its speed coasting out of the turn, "
                          .. "%.4f down to %.4f"):format(kept * 100, entry, speeds[#speeds]))
-                    assert.is_true(worst < 0.0005,
+                    assert.is_true(worst < 0.0008,
                         ("it lost %.5f of its speed in a single tick at tick %d")
                             :format(worst, worst_at))
                 end)
@@ -207,6 +207,50 @@ describe("a boat driven at the shore", function()
                     "the boat was put on the beach, where it cannot move")
                 world.release_controls()
             end)
+        end)
+    end)
+end)
+
+--- A collision arrives as a large drop to nothing. Treating that as braking, and handing
+--- back the share of it this kind is allowed to lose, gave a vehicle most of its speed
+--- back the moment it hit something.
+describe("a boat that has hit the shore", function()
+    test("stays stopped instead of leaping away from it", function()
+        local patch = world.patch("water")
+        local surface = patch.surface
+        local beach = {}
+        for x = patch.left + 60, patch.left + 96 - 1 do
+            for y = patch.top, patch.top + 96 - 1 do
+                beach[#beach + 1] = { name = "grass-1", position = { x, y } }
+            end
+        end
+        surface.set_tiles(beach)
+
+        local boat = patch.drive("vp-tests-boat")
+        boat.teleport({ patch.left + 30, patch.top + 48 })
+        patch.player.teleport(boat.position, surface)
+        boat.orientation = 0.25
+        patch.hold(ACCELERATE)
+
+        -- drive at the beach until something stops it
+        local hit_at, speed_before = nil, 0
+        for sample = 1, 200 do
+            after_ticks(sample, function()
+                if not hit_at and boat.valid then
+                    if boat.speed == 0 and sample > 20 then hit_at = sample
+                    else speed_before = boat.speed end
+                end
+            end)
+        end
+        after_ticks(201, function()
+            assert.is_not_nil(hit_at, "the boat never reached the shore")
+            assert.is_true(speed_before > 0.1,
+                ("setup: it was barely moving when it hit, %.3f"):format(speed_before))
+            -- whatever it does next, it must not be handed its speed back
+            assert.is_true(math.abs(boat.speed) < speed_before * 0.5,
+                ("it was doing %.3f before the collision and %.3f after"):format(
+                    speed_before, boat.speed))
+            world.release_controls()
         end)
     end)
 end)

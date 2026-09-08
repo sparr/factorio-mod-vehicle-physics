@@ -11,6 +11,37 @@ local tracking = require("lib.tracking")
 
 local sandbox = {}
 
+--- Where everything goes. Fixed coordinates rather than relative to the player, and the
+--- player is brought to them: the freeplay scenario moves the player about after it
+--- creates them, so anything placed relative to where they happen to be standing ends up
+--- somewhere else entirely.
+local ORIGIN = { x = 0, y = 0 }
+local SHORE = 45          -- water from here east
+local PIER_END = 52       -- walkable out to here, so the boat can be reached
+--- A boat collides with ground, so it has to float clear of the pier or it cannot move at
+--- all: the pier's last tile ends at 53, and the boat's hull is 1.4 wide, so 53.8 puts its
+--- western edge at 53.1 and nothing of it over land. Boarding reaches about a tile and a
+--- half, measured, and the pier edge is within that.
+local BOAT_X = 53.8
+
+--- Freeplay drops a crashed ship at the spawn point, scatters wreckage around it, hands
+--- out starting items and plays an intro that moves the player. All of it gets in the way
+--- of a driving test, and all of it can be switched off before it happens.
+function sandbox.on_init()
+    if remote.interfaces["freeplay"] then
+        if remote.interfaces["freeplay"]["set_disable_crashsite"] then
+            remote.call("freeplay", "set_disable_crashsite", true)
+        end
+        if remote.interfaces["freeplay"]["set_skip_intro"] then
+            remote.call("freeplay", "set_skip_intro", true)
+        end
+        if remote.interfaces["freeplay"]["set_created_items"] then
+            remote.call("freeplay", "set_created_items", {})
+        end
+    end
+end
+
+
 local MODDED_COLOUR = { r = 0.3, g = 1, b = 0.4 }
 local STOCK_COLOUR = { r = 1, g = 0.55, b = 0.2 }
 
@@ -76,6 +107,34 @@ local function show(player)
     label.style.font_color = modded and MODDED_COLOUR or STOCK_COLOUR
 end
 
+--- Out of the boat and back on dry land. There is no other way out of one: leaving a
+--- vehicle puts the player down beside it, and beside a boat is water, which the game
+--- refuses -- so somebody who sails out into open water is aboard for good.
+---@param player LuaPlayer
+function sandbox.ashore(player)
+    local vehicle = player.vehicle
+    if vehicle and vehicle.valid and tracking.kind(vehicle.name) == "boat" then
+        -- The game will not put a person down in water, and a boat in open water has
+        -- nothing but water around it, so there is no way out of one by any means the
+        -- game offers. The boat is run up the beach far enough that its hull overlaps
+        -- dry land -- a teleport asks nothing about where it is going, which is a
+        -- nuisance everywhere else and useful here -- the player steps off onto that
+        -- land, and the boat is put back at its mooring behind them.
+        vehicle.speed = 0
+        vehicle.teleport({ SHORE - 0.5, ORIGIN.y + 20 })
+        player.driving = false
+        if vehicle.valid then vehicle.teleport({ BOAT_X, ORIGIN.y }) end
+    else
+        player.driving = false
+    end
+
+    if not player.driving then
+        player.teleport({ PIER_END - 1, ORIGIN.y }, player.surface)
+        player.print("[color=cyan]Back on the pier; the boat is at its mooring.[/color]")
+    end
+    show(player)
+end
+
 --- Set the switch and make it so. Public so that a fixture can throw it the same way the
 --- hotkey does, rather than reaching past it and reimplementing what it means.
 ---@param player LuaPlayer
@@ -100,36 +159,6 @@ local function flip(player, why)
                  .. " -- " .. why)
 end
 
---- Where everything goes. Fixed coordinates rather than relative to the player, and the
---- player is brought to them: the freeplay scenario moves the player about after it
---- creates them, so anything placed relative to where they happen to be standing ends up
---- somewhere else entirely.
-local ORIGIN = { x = 0, y = 0 }
-local SHORE = 45          -- water from here east
-local PIER_END = 52       -- walkable out to here, so the boat can be reached
---- A boat collides with ground, so it has to float clear of the pier or it cannot move at
---- all: the pier's last tile ends at 53, and the boat's hull is 1.4 wide, so 53.8 puts its
---- western edge at 53.1 and nothing of it over land. Boarding reaches about a tile and a
---- half, measured, and the pier edge is within that.
-local BOAT_X = 53.8
-
---- Freeplay drops a crashed ship at the spawn point, scatters wreckage around it, hands
---- out starting items and plays an intro that moves the player. All of it gets in the way
---- of a driving test, and all of it can be switched off before it happens.
-function sandbox.on_init()
-    if remote.interfaces["freeplay"] then
-        if remote.interfaces["freeplay"]["set_disable_crashsite"] then
-            remote.call("freeplay", "set_disable_crashsite", true)
-        end
-        if remote.interfaces["freeplay"]["set_skip_intro"] then
-            remote.call("freeplay", "set_skip_intro", true)
-        end
-        if remote.interfaces["freeplay"]["set_created_items"] then
-            remote.call("freeplay", "set_created_items", {})
-        end
-    end
-end
-
 function sandbox.build(player)
     local surface = player.surface
     -- out of whatever they are sitting in first: teleporting a seated player moves the
@@ -152,8 +181,10 @@ function sandbox.build(player)
                                        or "sand-1"
             elseif x < SHORE then name = "grass-1"
             else name = "water" end
-            -- a pier, so the boat is something you can walk up to
-            if x >= SHORE and x <= PIER_END and y >= -1 and y <= 1 then name = "grass-1" end
+            -- A pier, so the boat is something you can walk up to. One tile wide: a
+            -- broad one is a wall to catch the hull on, and a boat that snags on it has
+            -- to be wiggled off.
+            if x >= SHORE and x <= PIER_END and y == 0 then name = "grass-1" end
             tiles[#tiles + 1] = { name = name, position = { x, y } }
         end
     end
@@ -186,6 +217,8 @@ function sandbox.build(player)
     player.print("Follow the pier east to the water for the boat.")
     player.print("Press [color=yellow]N[/color] to switch the physics on and off, or just "
                  .. "get out and back in -- either flips it.")
+    player.print("Press [color=yellow]B[/color] to get out of the boat: there is no water "
+                 .. "to step out onto, so the game will not let you leave it otherwise.")
     show(player)
 end
 
@@ -206,6 +239,10 @@ end
 function sandbox.register()
     script.on_event("vp-tests-toggle-physics", function(event)
         flip(game.players[event.player_index], "hotkey")
+    end)
+
+    script.on_event("vp-tests-ashore", function(event)
+        sandbox.ashore(game.players[event.player_index])
     end)
 
     --- Built a tick after the player appears rather than the moment they do. The scenario

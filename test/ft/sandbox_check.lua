@@ -99,3 +99,33 @@ describe("the sandbox switch", function()
         end)
     end)
 end)
+
+--- Leaving a vehicle puts the player down beside it, and beside a boat is water, which
+--- the game refuses. Without a way off, somebody who sails out is aboard for good.
+describe("getting out of a boat", function()
+    test("works even in open water, where the game will not allow it", function()
+        local player = game.players[1]
+        sandbox.build(player)
+        local surface = player.surface
+        local boat = surface.find_entities_filtered{ name = "vp-tests-boat",
+                                                     area = { { -90, -90 }, { 90, 90 } } }[1]
+        assert.is_not_nil(boat, "the sandbox put no boat out")
+
+        player.teleport({ 52, 0 }, surface)
+        player.driving = true
+        assert.equals("vp-tests-boat", player.vehicle and player.vehicle.name,
+            "setup: could not board the boat from the pier")
+
+        -- out into open water, nowhere near anything to stand on
+        boat.teleport({ 75, 25 })
+        player.driving = false
+        assert.is_true(player.driving,
+            "setup: the game let them out onto water, so there is nothing to solve")
+
+        sandbox.ashore(player)
+        assert.is_false(player.driving, "still aboard after asking to go ashore")
+        local standing = surface.get_tile(player.position.x, player.position.y).name
+        assert.is_not.equal("water", standing,
+            "put ashore onto water, which is not ashore")
+    end)
+end)

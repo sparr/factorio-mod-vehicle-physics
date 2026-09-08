@@ -103,13 +103,20 @@ script.on_event(defines.events.on_tick, function(event)
 			-- Give back only the share of this tick's acceleration or braking that this
 			-- kind is allowed. An aircraft gets a tenth of a car's, so it takes ten times
 			-- as long to wind up and to wind down.
+			-- Only what the driver did, never what the world did. A collision arrives
+			-- here as a large drop to nothing, and giving a share of that back handed the
+			-- vehicle three quarters of its speed after hitting a pier -- it looked like
+			-- it was leaping away from a dead stop. A stop stays a stop.
 			local scale = tracking.HANDLING[tracking.kind(tbl.entity.name)]
+			local pedal = tbl.entity.riding_state.acceleration
 			local was = tbl.last_speed or 0
 			local change = speed - was
-			if change > 0 and math.abs(speed) > math.abs(was) and scale.accelerating ~= 1 then
+			if pedal == defines.riding.acceleration.accelerating
+				and math.abs(speed) > math.abs(was) and scale.accelerating ~= 1 then
 				speed = was + change * scale.accelerating
 				tbl.entity.speed = speed
-			elseif change ~= 0 and math.abs(speed) < math.abs(was) and scale.braking ~= 1 then
+			elseif pedal == defines.riding.acceleration.braking and speed ~= 0
+				and math.abs(speed) < math.abs(was) and scale.braking ~= 1 then
 				speed = was + change * scale.braking
 				tbl.entity.speed = speed
 			end
