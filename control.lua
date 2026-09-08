@@ -1,14 +1,6 @@
 local geometry = require("lib.geometry")
+local tracking = require("lib.tracking")
 
-local exclusions = {
-	["raven2-1"] = true, -- my custom raven mod
-	["raven2-2"] = true, -- my custom raven mod
-	["raven2-shadow"] = true, -- my custom raven mod
-	["hcraft-entity"] = true, --hovercrafts
-	["ecraft-entity"] = true, --hovercrafts
-	["mcraft-entity"] = true, --hovercrafts
-	["lcraft-entity"] = true, --hovercrafts
-}
 function is_flycar(entity_name)
 	if storage.is_flycar[entity_name] == nil then
 		-- 2.0 turned the flat mask into a table of named layers, and player-layer into player
@@ -22,30 +14,14 @@ function is_flycar(entity_name)
 	return storage.is_flycar[entity_name]
 end
 
---- Start tracking a car, a tick after somebody got into it. The wait is deliberate: at
---- the moment the event fires the vehicle has not moved yet, and the physics wants a
---- position and speed to work from.
----@param entity LuaEntity
-local function start_tracking(entity)
-	storage.cars[entity.unit_number] = {
-		entity = entity,
-		drift = {x=0,y=0},
-		position = entity.position,
-		idle_ticks = 0,
-		orientation = entity.orientation,
-		last_pos = entity.position,
-		last_speed = entity.speed,
-	}
-	if entity.speed ~= 0 then
-		storage.cars[entity.unit_number].drift = geometry.projection(entity.orientation, entity.speed)
-	end
-end
-
 script.on_event(defines.events.on_player_driving_changed_state, function(event)
-if event.entity and event.entity.type == "car" and not exclusions[event.entity.name] then
+if event.entity and event.entity.type == "car" and not tracking.exclusions[event.entity.name] then
 	if not event.entity.get_driver() then
 		storage.cars[event.entity.unit_number] = nil
 		storage.tanks[event.entity.unit_number] = nil
+		-- and drop any registration still waiting its turn, or getting in and straight
+		-- back out again leaves the car on the books with nobody in it, for good
+		tracking.cancel_pending(event.entity)
 	elseif not storage.cars[event.entity.unit_number] then
 		if event.entity.name:find("tank") then
 			storage.tanks[event.entity.unit_number] = {entity = event.entity}
@@ -340,7 +316,7 @@ script.on_event(defines.events.on_tick, function(event)
 	end	
 	if storage.entering[event.tick] then
 		for _, entity in pairs(storage.entering[event.tick]) do
-			if entity.valid then start_tracking(entity) end
+			if entity.valid then tracking.start(entity) end
 		end
 		storage.entering[event.tick] = nil
 	end
@@ -353,6 +329,7 @@ script.on_init(function()
 	storage.is_flycar = {}
 	storage.geigers = {}
 	storage.version = 3
+	tracking.adopt()
 end)
 script.on_configuration_changed(function()
 	if storage.version == 1 then
@@ -368,6 +345,7 @@ script.on_configuration_changed(function()
 	-- collision masks were rewritten in 2.0, so what was worked out under 1.1 is no
 	-- longer the answer to the same question
 	storage.is_flycar = {}
+	tracking.adopt()
 end)
 
 --- vp-tests is never published, so this can never fire on a player's machine -- which
@@ -375,6 +353,7 @@ end)
 if script.active_mods["factorio-test"] and script.active_mods["vp-tests"] then
 	require("__factorio-test__/init")({
 		"test.ft.driving",
+		"test.ft.tracking",
 	}, {
 		load_luassert = true,
 		game_speed = 100,

@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.2
+Date: ????
+  Bugfixes:
+    - The physics applies to a vehicle you were already sitting in when the mod was added
+      to a game. It used to do nothing at all until you got out and back in
+    - Getting into a vehicle and straight back out no longer leaves it being tracked with
+      nobody in it
+---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-09-08
   Other:
