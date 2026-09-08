@@ -14,9 +14,8 @@ Date: ????
     - A boat or aircraft eases away from a standstill instead of jumping. Its first tick
       used to be the largest of the whole run, which is how the game accelerates a car and
       not how either of these should leave the line
-    - A boat or aircraft comes to rest without a last-moment lurch, whatever it brakes like
-    - Coming to a stop no longer lurches. A vehicle that brakes gently was having the last
-      of its speed taken off in a single step
+    - Coming to a stop no longer lurches, however gently the vehicle brakes. The last of
+      its speed was being taken off in a single step
     - A vehicle stopped by hitting something stays stopped. It used to be handed back most
       of the speed the collision took off it, and leapt away from whatever it had hit
     - A drifting boat is no longer pushed onto land, where it could not move at all. The
@@ -25,6 +24,8 @@ Date: ????
       to a game. It used to do nothing at all until you got out and back in
     - Getting into a vehicle and straight back out no longer leaves it being tracked with
       nobody in it
+    - Hovercrafts and Helicopter Revival move their vehicles themselves, and this mod now
+      keeps its hands off them. The two were fighting for control every tick
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-09-08

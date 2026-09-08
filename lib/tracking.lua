@@ -6,16 +6,67 @@ local geometry = require("lib.geometry")
 
 local tracking = {}
 
---- Vehicles from other mods that bring their own physics and want to be left alone.
-tracking.exclusions = {
-	["raven2-1"] = true, -- my custom raven mod
-	["raven2-2"] = true, -- my custom raven mod
-	["raven2-shadow"] = true, -- my custom raven mod
-	["hcraft-entity"] = true, --hovercrafts
-	["ecraft-entity"] = true, --hovercrafts
-	["mcraft-entity"] = true, --hovercrafts
-	["lcraft-entity"] = true, --hovercrafts
+--- Vehicles another mod is already moving itself, which this mod must not touch. Two
+--- mods writing speed and position to the same entity every tick do not average out;
+--- they overwrite each other, and the vehicle stutters or refuses to go anywhere.
+---
+--- Naming the prototypes is the only way to know. Nothing on a vehicle says whether some
+--- other mod has claimed it, and the mods that do claim one identify it by name too. So
+--- each entry is tied to the mod that ships it, and a name only counts when that mod is
+--- actually loaded -- a bare list rots silently when a mod renames its prototypes, and
+--- would wrongly exclude an unrelated vehicle that happened to share a name.
+local FOREIGN = {
+	-- Sparr's raven mod, which flies its birds itself
+	["raven2"] = { names = { "raven2-1", "raven2-2", "raven2-shadow" } },
+
+	-- Hovercrafts runs a full drift model of its own on these four, teleporting them and
+	-- setting their speed every tick
+	["Hovercrafts"] = { names = {
+		"hovercraft", "electric-hovercraft", "missile-hovercraft", "laser-hovercraft",
+	} },
+
+	-- HelicopterRevival flies its helicopters from script, down to writing the pilot's
+	-- riding_state. It builds its prototype names from a per-helicopter prefix, so there
+	-- is no fixed list to copy: the base a pilot actually sits in is <prefix>heli-entity-_-,
+	-- and <prefix>helicopter is the placement entity it swaps out on build.
+	["HelicopterRevival"] = { patterns = { "entity%-_%-$", "helicopter$" } },
 }
+
+--- The vehicle names other mods own, out of everything installed.
+---
+--- Pure, and separate from the caching below, so it can be checked against a made-up
+--- mod list without a game running.
+---@param active_mods table<string, string> what script.active_mods holds
+---@param entity_prototypes table<string, any> what prototypes.entity holds
+---@return table<string, boolean>
+function tracking.foreign_vehicles(active_mods, entity_prototypes)
+	local foreign = {}
+	for mod, claim in pairs(FOREIGN) do
+		if active_mods[mod] then
+			for _, name in pairs(claim.names or {}) do
+				foreign[name] = true
+			end
+			for _, pattern in pairs(claim.patterns or {}) do
+				for name in pairs(entity_prototypes) do
+					if name:find(pattern) then foreign[name] = true end
+				end
+			end
+		end
+	end
+	return foreign
+end
+
+local foreign = nil
+
+--- Whether another mod owns this vehicle's movement. What is installed cannot change
+--- while a game is running, so the answer is worked out once and kept.
+---@param entity_name string
+---@return boolean
+function tracking.excluded(entity_name)
+	foreign = foreign or tracking.foreign_vehicles(script.active_mods, prototypes.entity)
+	return foreign[entity_name] or false
+end
+
 
 --- Start tracking a car, a tick after somebody got into it. The wait is deliberate: at
 --- the moment the event fires the vehicle has not moved yet, and the physics wants a
@@ -45,7 +96,7 @@ function tracking.adopt()
 	for _, player in pairs(game.players) do
 		local vehicle = player.vehicle
 		if vehicle and vehicle.valid and vehicle.type == "car"
-			and not tracking.exclusions[vehicle.name] and vehicle.get_driver() then
+			and not tracking.excluded(vehicle.name) and vehicle.get_driver() then
 			if vehicle.name:find("tank") then
 				storage.tanks[vehicle.unit_number] = { entity = vehicle }
 			else

@@ -27,7 +27,7 @@ if script.active_mods["vp-tests"] and not script.active_mods["factorio-test"] th
 end
 
 script.on_event(defines.events.on_player_driving_changed_state, function(event)
-if event.entity and event.entity.type == "car" and not tracking.exclusions[event.entity.name] then
+if event.entity and event.entity.type == "car" and not tracking.excluded(event.entity.name) then
 	if not event.entity.get_driver() then
 		storage.cars[event.entity.unit_number] = nil
 		storage.tanks[event.entity.unit_number] = nil
