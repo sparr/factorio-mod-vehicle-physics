@@ -49,10 +49,17 @@ function world.patch(tile)
     local surface = world.surface
     local player = game.players[1]
 
-    -- out of whatever the last test left them sitting in, or the new car never gets a
-    -- driver and the mod never hears about it
+    -- Out of whatever the last test left them sitting in, or the new car never gets a
+    -- driver and the mod never hears about it. Getting out is not always possible:
+    -- stepping out of a boat means stepping onto water, which the game refuses, and the
+    -- player stays aboard. Test vehicles are disposable, so one that will not let go of
+    -- them is destroyed.
     world.controls = nil
-    if player.driving then player.driving = false end
+    if player.driving then
+        local previous = player.vehicle
+        player.driving = false
+        if player.driving and previous and previous.valid then previous.destroy() end
+    end
 
     local area = { { left, top }, { left + PATCH, top + PATCH } }
     for _, entity in pairs(surface.find_entities(area)) do
@@ -94,7 +101,10 @@ function world.patch(tile)
         assert.same({}, obstructions, "something is parked next to the car")
         player.teleport(patch.centre, surface)
         player.driving = true
-        assert(player.vehicle, "the player did not get into the vehicle")
+        -- the name, not merely that they are in something: a player still stuck in the
+        -- last test's boat passes "are they driving" and then nothing moves
+        assert.equals(name or "car", player.vehicle and player.vehicle.name,
+            "the player is in the wrong vehicle, or none")
         patch.car = car
         return car
     end
@@ -199,6 +209,16 @@ function world.hold(acceleration, direction)
     world.controls = { acceleration = acceleration,
                        direction = direction or defines.riding.direction.straight }
     game.players[1].riding_state = world.controls
+end
+
+--- Let go of everything, so the next fixture is not driving on the last one's inputs
+function world.release_controls()
+    world.controls = nil
+    local player = game.players[1]
+    if player then
+        player.riding_state = { acceleration = defines.riding.acceleration.nothing,
+                                direction = defines.riding.direction.straight }
+    end
 end
 
 --- The mod's own record of a car, or nil if it is not tracking it

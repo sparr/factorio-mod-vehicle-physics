@@ -252,11 +252,18 @@ script.on_event(defines.events.on_tick, function(event)
 				if (drift_x^2+drift_y^2)^0.5 > required_drift then
 					
 					local new_pos = {x=tbl.position.x+drift_x,y=tbl.position.y+drift_y}
+					-- Sliding sideways scrubs speed off, in proportion to how far the
+					-- drift is carrying the vehicle. That is tyres biting, so it is
+					-- divided by how much this kind slides: a car scrubs hard, an
+					-- aircraft has nothing to bite on and barely scrubs at all. Without
+					-- the division a kind that drifts ten times as much also scrubbed ten
+					-- times as hard and slammed to a stop out of a slide.
+					local scrub = geometry.distance(pos, new_pos) * 0.01 / handling.drift
 					if speed > 0 then
-						speed = math.max(0, speed-geometry.distance(pos, new_pos)*0.01)
+						speed = math.max(0, speed - scrub)
 						tbl.entity.speed = speed
 					elseif speed < 0 then
-						speed = math.min(0, speed+geometry.distance(pos, new_pos)*0.01)
+						speed = math.min(0, speed + scrub)
 						tbl.entity.speed = speed
 					end
 					--game.print(-geometry.distance(pos, new_pos)*0.01)

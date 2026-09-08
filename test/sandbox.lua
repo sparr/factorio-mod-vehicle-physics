@@ -33,6 +33,9 @@ local function apply(vehicle)
     else
         storage.cars[vehicle.unit_number] = nil
         storage.tanks[vehicle.unit_number] = nil
+        -- and the registration waiting a tick behind, or the mod puts the vehicle
+        -- straight back on its books and the switch reads the opposite of the truth
+        tracking.cancel_pending(vehicle)
     end
 end
 
@@ -73,11 +76,19 @@ local function show(player)
     label.style.font_color = modded and MODDED_COLOUR or STOCK_COLOUR
 end
 
-local function flip(player, why)
-    local sb = state()
-    sb.modded = not sb.modded
+--- Set the switch and make it so. Public so that a fixture can throw it the same way the
+--- hotkey does, rather than reaching past it and reimplementing what it means.
+---@param player LuaPlayer
+---@param modded boolean
+function sandbox.set(player, modded)
+    state().modded = modded
     apply(player.vehicle)
     show(player)
+end
+
+local function flip(player, why)
+    local sb = state()
+    sandbox.set(player, not sb.modded)
     player.create_local_flying_text{
         text = (sb.modded and "physics ON" or "physics OFF") .. " (" .. why .. ")",
         create_at_cursor = false,
@@ -96,9 +107,11 @@ end
 local ORIGIN = { x = 0, y = 0 }
 local SHORE = 45          -- water from here east
 local PIER_END = 52       -- walkable out to here, so the boat can be reached
---- Measured, not guessed: a boat on water can be boarded from land only within about a
---- tile and a half. At two and a half you stand on the pier and nothing happens.
-local BOAT_X = 53.5
+--- A boat collides with ground, so it has to float clear of the pier or it cannot move at
+--- all: the pier's last tile ends at 53, and the boat's hull is 1.4 wide, so 53.8 puts its
+--- western edge at 53.1 and nothing of it over land. Boarding reaches about a tile and a
+--- half, measured, and the pier edge is within that.
+local BOAT_X = 53.8
 
 --- Freeplay drops a crashed ship at the spawn point, scatters wreckage around it, hands
 --- out starting items and plays an intro that moves the player. All of it gets in the way
@@ -119,6 +132,13 @@ end
 
 function sandbox.build(player)
     local surface = player.surface
+    -- out of whatever they are sitting in first: teleporting a seated player moves the
+    -- vehicle or fails outright, and either way they do not end up where this puts them
+    if player.driving then
+        local previous = player.vehicle
+        player.driving = false
+        if player.driving and previous and previous.valid then previous.destroy() end
+    end
     surface.request_to_generate_chunks(ORIGIN, 5)
     surface.force_generate_chunk_requests()
 

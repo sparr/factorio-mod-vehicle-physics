@@ -126,3 +126,46 @@ describe("marks on the ground", function()
         end)
     end)
 end)
+
+--- An aircraft slides ten times as readily as a car, and sliding scrubs speed off. If
+--- that scrub is not divided by how much the kind slides, an aircraft scrubs ten times as
+--- hard as a car and slams to a stop coming out of a turn, or off the end of a brake.
+describe("an aircraft coming out of a slide", function()
+    test("loses its speed smoothly rather than stopping dead", function()
+        local patch = world.patch("refined-concrete")
+        local plane = patch.drive("vp-tests-plane")
+        patch.hold(ACCELERATE)
+        after_ticks(120, function()
+            -- turned across its own line, which is where the drift is largest
+            patch.hold(ACCELERATE, LEFT)
+            after_ticks(60, function()
+                local entry = plane.speed
+                assert.is_true(entry > 0.05, "setup: never got moving, at " .. entry)
+                patch.hold(defines.riding.acceleration.nothing, LEFT)
+
+                local speeds = {}
+                for sample = 1, 90 do
+                    after_ticks(sample, function() speeds[sample] = plane.speed end)
+                end
+                after_ticks(91, function()
+                    local worst, worst_at = 0, 0
+                    for i = 2, #speeds do
+                        local drop = speeds[i - 1] - speeds[i]
+                        if drop > worst then worst, worst_at = drop, i end
+                    end
+                    -- Measured both ways to set these: with the scrub divided by how
+                    -- much the kind slides an aircraft keeps 94% of its speed through
+                    -- the coast and never loses more than 0.0002 in a tick; without, it
+                    -- keeps 61% and sheds five times as much in its worst tick.
+                    local kept = speeds[#speeds] / entry
+                    assert.is_true(kept > 0.85,
+                        ("it kept only %.0f%% of its speed coasting out of the turn, "
+                         .. "%.4f down to %.4f"):format(kept * 100, entry, speeds[#speeds]))
+                    assert.is_true(worst < 0.0005,
+                        ("it lost %.5f of its speed in a single tick at tick %d")
+                            :format(worst, worst_at))
+                end)
+            end)
+        end)
+    end)
+end)
