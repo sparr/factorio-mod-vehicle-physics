@@ -89,12 +89,40 @@ local function flip(player, why)
                  .. " -- " .. why)
 end
 
+--- Where everything goes. Fixed coordinates rather than relative to the player, and the
+--- player is brought to them: the freeplay scenario moves the player about after it
+--- creates them, so anything placed relative to where they happen to be standing ends up
+--- somewhere else entirely.
+local ORIGIN = { x = 0, y = 0 }
+local SHORE = 45          -- water from here east
+local PIER_END = 52       -- walkable out to here, so the boat can be reached
+--- Measured, not guessed: a boat on water can be boarded from land only within about a
+--- tile and a half. At two and a half you stand on the pier and nothing happens.
+local BOAT_X = 53.5
+
+--- Freeplay drops a crashed ship at the spawn point, scatters wreckage around it, hands
+--- out starting items and plays an intro that moves the player. All of it gets in the way
+--- of a driving test, and all of it can be switched off before it happens.
+function sandbox.on_init()
+    if remote.interfaces["freeplay"] then
+        if remote.interfaces["freeplay"]["set_disable_crashsite"] then
+            remote.call("freeplay", "set_disable_crashsite", true)
+        end
+        if remote.interfaces["freeplay"]["set_skip_intro"] then
+            remote.call("freeplay", "set_skip_intro", true)
+        end
+        if remote.interfaces["freeplay"]["set_created_items"] then
+            remote.call("freeplay", "set_created_items", {})
+        end
+    end
+end
+
 function sandbox.build(player)
     local surface = player.surface
-    surface.request_to_generate_chunks({ 0, 0 }, 5)
+    surface.request_to_generate_chunks(ORIGIN, 5)
     surface.force_generate_chunk_requests()
 
-    -- paved on the left, loose in the middle, a channel of water on the right for a boat
+    -- paved to the west, stripes of paving and sand, grass, then open water
     local tiles = {}
     for x = -90, 90 do
         for y = -90, 90 do
@@ -102,18 +130,19 @@ function sandbox.build(player)
             if x < -20 then name = "refined-concrete"
             elseif x < 30 then name = (math.floor(y / 14) % 2 == 0) and "refined-concrete"
                                        or "sand-1"
-            elseif x < 45 then name = "grass-1"
+            elseif x < SHORE then name = "grass-1"
             else name = "water" end
+            -- a pier, so the boat is something you can walk up to
+            if x >= SHORE and x <= PIER_END and y >= -1 and y <= 1 then name = "grass-1" end
             tiles[#tiles + 1] = { name = name, position = { x, y } }
         end
     end
     surface.set_tiles(tiles)
 
-    for _, entity in pairs(surface.find_entities_filtered{
-        area = { { -90, -90 }, { 90, 90 } },
-        type = { "tree", "simple-entity", "unit", "unit-spawner", "turret", "cliff",
-                 "simple-entity-with-owner", "container", "car" } }) do
-        if entity.valid then entity.destroy() end
+    -- everything, not a list of types: the scenario's crashed ship, its wreckage, the
+    -- fires around it and whatever it dropped are all in the way of a driving test
+    for _, entity in pairs(surface.find_entities{ { -90, -90 }, { 90, 90 } }) do
+        if entity.valid and entity.type ~= "character" then entity.destroy() end
     end
 
     local function place(name, x, y)
@@ -122,22 +151,21 @@ function sandbox.build(player)
         if vehicle then vehicle.insert{ name = "nuclear-fuel", count = 5 } end
         return vehicle
     end
-    place("car", -30, 0)
-    place("tank", -30, 10)
-    place("vp-tests-plane", -30, -10)
-    place("vp-tests-boat", 60, 0)
+    place("car", ORIGIN.x + 6, ORIGIN.y)
+    place("tank", ORIGIN.x + 6, ORIGIN.y + 8)
+    place("vp-tests-plane", ORIGIN.x + 6, ORIGIN.y - 8)
+    place("vp-tests-boat", BOAT_X, ORIGIN.y)
 
-    player.teleport({ -34, 0 })
+    player.teleport(ORIGIN, surface)
     player.cheat_mode = true
     local inventory = player.get_main_inventory()
     if inventory then inventory.insert{ name = "nuclear-fuel", count = 50 } end
 
     player.print("[color=cyan]Vehicle Physics sandbox[/color]")
-    player.print("A car, a tank, an aircraft and, out east in the water, a boat.")
+    player.print("A car, a tank and an aircraft are six tiles east of you.")
+    player.print("Follow the pier east to the water for the boat.")
     player.print("Press [color=yellow]N[/color] to switch the physics on and off, or just "
                  .. "get out and back in -- either flips it.")
-    player.print("Left of x=-20 is paved. The middle is striped paving and sand. "
-                 .. "Grass, then water.")
     show(player)
 end
 
@@ -160,8 +188,17 @@ function sandbox.register()
         flip(game.players[event.player_index], "hotkey")
     end)
 
-    script.on_event(defines.events.on_player_created, function(event)
-        sandbox.build(game.players[event.player_index])
+    --- Built a tick after the player appears rather than the moment they do. The scenario
+    --- moves them to the spawn point after on_player_created, so anything positioned
+    --- during that event is positioned relative to somewhere they are about to leave.
+    --- on_nth_tick rather than on_tick, which the mod itself owns.
+    script.on_event(defines.events.on_player_created, function()
+        -- a second in, long after the scenario has finished moving anybody
+        script.on_nth_tick(60, function()
+            script.on_nth_tick(60, nil)
+            local player = game.players[1]
+            if player then sandbox.build(player) end
+        end)
     end)
 end
 

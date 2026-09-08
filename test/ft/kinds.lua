@@ -25,15 +25,36 @@ describe("what a vehicle is", function()
 end)
 
 describe("how each kind handles", function()
-    test("has a boat sliding more than a car, and an aircraft more than a boat", function()
-        local ground, boat, flying = tracking.HANDLING.ground, tracking.HANDLING.boat,
-                                     tracking.HANDLING.flying
-        assert.is_true(boat.rolling > ground.rolling,
-            "a boat holds its line no better than a car")
-        assert.is_true(flying.rolling > boat.rolling,
-            "an aircraft holds its line no better than a boat")
-        assert.is_true(boat.braking > ground.braking and flying.braking > boat.braking,
-            "the same has to hold on the brakes")
+    test("is set as multiples of what a car does", function()
+        local car = tracking.HANDLING.ground
+        assert.equals(1, car.accelerating)
+        assert.equals(1, car.braking)
+        assert.equals(1, car.drift)
+        assert.equals(1, car.rotate)
+
+        local boat, plane = tracking.HANDLING.boat, tracking.HANDLING.flying
+        assert.is_true(boat.accelerating < car.accelerating,
+            "a boat should not pick up speed as readily as a car")
+        assert.is_true(plane.accelerating < boat.accelerating,
+            "an aircraft should pick up speed even less readily than a boat")
+        assert.is_true(boat.drift > car.drift and plane.drift > boat.drift,
+            "a boat should slide more than a car, and an aircraft more than a boat")
+        assert.is_true(boat.rotate < car.rotate and plane.rotate > boat.rotate,
+            "a boat should be the most sluggish thing to turn")
+    end)
+
+    --- The drift figure is a multiple of how much a car slides, and has to come out as a
+    --- share of drift kept per tick that rises with it.
+    test("turns the drift multiple into what the physics actually uses", function()
+        local car = tracking.drift_multiplier("ground", false)
+        local boat = tracking.drift_multiplier("boat", false)
+        local plane = tracking.drift_multiplier("flying", false)
+        assert.equals(0.865, car)
+        assert.is_true(boat > car and plane > boat,
+            ("kept per tick: car %.4f, boat %.4f, aircraft %.4f"):format(car, boat, plane))
+        -- a boat corrects a quarter as much of its drift as a car does
+        assert.is_true(math.abs((1 - boat) * 4 - (1 - car)) < 1e-9)
+        assert.is_true(math.abs((1 - plane) * 10 - (1 - car)) < 1e-9)
     end)
 end)
 

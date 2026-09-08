@@ -87,19 +87,37 @@ function tracking.kind(entity_name)
 	return known
 end
 
---- How each kind handles.
+--- How each kind handles, as multiples of what a car does.
 ---
---- `rolling` and `braking` are how much of last tick's drift is carried into this one:
---- higher means it holds its line for longer instead of going where it is pointed. A car
---- bites, a boat slides, an aircraft largely ignores being steered at all.
+--- `accelerating` and `braking` scale the speed the game gives or takes each tick, so a
+--- tenth means a tenth of the acceleration a car would have had. `drift` is how much more
+--- readily it slides: a car corrects a tenth and a bit of its drift towards the way it is
+--- pointing every tick, and a drift of 4 means it corrects a quarter as much, so it holds
+--- its old line four times as stubbornly. `rotate` scales how fast the nose comes round.
 ---
---- `steering` divides speed before it is taken off the vehicle's manoeuvrability, so a
---- bigger number means speed costs it less of its ability to turn.
+--- A car is the baseline and is left exactly as it was.
 tracking.HANDLING = {
-	ground = { rolling = 0.865, braking = 0.95,  steering = 1.5 },
-	boat   = { rolling = 0.91,  braking = 0.955, steering = 2 },
-	flying = { rolling = 0.95,  braking = 0.97,  steering = 3 },
+	ground = { accelerating = 1,    braking = 1,    drift = 1,  rotate = 1 },
+	boat   = { accelerating = 0.25, braking = 0.25, drift = 4,  rotate = 0.125 },
+	flying = { accelerating = 0.1,  braking = 0.1,  drift = 10, rotate = 0.25 },
 }
+
+--- What a car keeps of its drift each tick, rolling and on the brakes. Everything else is
+--- expressed against these.
+tracking.CAR_DRIFT = { rolling = 0.865, braking = 0.95 }
+
+--- The share of its drift a vehicle carries into the next tick.
+---
+--- The car's figure says it corrects 13.5% of its drift towards its heading each tick
+--- when rolling. Sliding `drift` times as much means correcting `drift` times less, so
+--- the correction is divided and the rest is what it keeps.
+---@param kind "ground"|"boat"|"flying"
+---@param braking boolean
+---@return number
+function tracking.drift_multiplier(kind, braking)
+	local car = tracking.CAR_DRIFT[braking and "braking" or "rolling"]
+	return 1 - (1 - car) / tracking.HANDLING[kind].drift
+end
 
 --- Drop a registration that has not happened yet, for somebody who got in and straight
 --- back out again. Without it the car stays on the books with nobody in it, for good.

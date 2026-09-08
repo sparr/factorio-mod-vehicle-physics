@@ -100,6 +100,19 @@ script.on_event(defines.events.on_tick, function(event)
 		--game.print(unit_number)
 		if tbl.entity and tbl.entity.valid then
 			local speed = tbl.entity.speed
+			-- Give back only the share of this tick's acceleration or braking that this
+			-- kind is allowed. An aircraft gets a tenth of a car's, so it takes ten times
+			-- as long to wind up and to wind down.
+			local scale = tracking.HANDLING[tracking.kind(tbl.entity.name)]
+			local was = tbl.last_speed or 0
+			local change = speed - was
+			if change > 0 and math.abs(speed) > math.abs(was) and scale.accelerating ~= 1 then
+				speed = was + change * scale.accelerating
+				tbl.entity.speed = speed
+			elseif change ~= 0 and math.abs(speed) < math.abs(was) and scale.braking ~= 1 then
+				speed = was + change * scale.braking
+				tbl.entity.speed = speed
+			end
 			if speed == 0 and tbl.last_speed ~= 0 then
 				tbl.entity.teleport(tbl.last_pos or tbl.entity.position)
 				tbl.position = tbl.last_pos
@@ -125,7 +138,7 @@ script.on_event(defines.events.on_tick, function(event)
 				local is_braking = tbl.entity.riding_state.acceleration == defines.riding.acceleration.braking
 				local entity_orientation = tbl.entity.orientation
 				local handling = tracking.HANDLING[kind]
-				local drifting_multiplier = handling[is_braking and "braking" or "rolling"]
+				local drifting_multiplier = tracking.drift_multiplier(kind, is_braking)
 				drift_x = movement_x*(1-drifting_multiplier)+tbl.drift.x*drifting_multiplier
 				drift_y = movement_y*(1-drifting_multiplier)+tbl.drift.y*drifting_multiplier
 				--if (tbl.drifting or 1000) < 3 then
@@ -182,7 +195,8 @@ script.on_event(defines.events.on_tick, function(event)
 					end
 				end
 				if not is_braking then
-					local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / handling.steering)
+					local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / 1.5)
+						* handling.rotate
 					--game.print("manuver: "..manuverability)
 					local orientation_change = entity_orientation - tbl.orientation
 					if orientation_change < -0.5 then
@@ -197,6 +211,7 @@ script.on_event(defines.events.on_tick, function(event)
 					if kind == "ground" then
 						if concrete_tiles >=1 then
 							local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / 3)
+								* handling.rotate
 							--game.print("manuver: "..manuverability)
 							local orientation_change = entity_orientation - tbl.orientation
 							if orientation_change < -0.5 then
@@ -312,6 +327,7 @@ script.on_event(defines.events.on_tick, function(event)
 end)
 
 script.on_init(function()
+	if sandbox then sandbox.on_init() end
 	storage.entering = {}
 	storage.cars = {}
 	storage.tanks = {}
@@ -345,6 +361,7 @@ if script.active_mods["factorio-test"] and script.active_mods["vp-tests"] then
 		"test.ft.driving",
 		"test.ft.tracking",
 		"test.ft.kinds",
+		"test.ft.sandbox_check",
 		"test.ft.measure",
 	}, {
 		load_luassert = true,
