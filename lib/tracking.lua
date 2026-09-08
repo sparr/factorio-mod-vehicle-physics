@@ -80,10 +80,12 @@ local FOREIGN = {
 	-- Laser Tanks carries the same drift model as Hovercrafts, on these two
 	["laser_tanks"] = { names = { "lasercar", "lasertank" } },
 
-	-- WH40k Titans damps its titans' speed itself every tick
+	-- WH40k Titans damps its titans' speed itself every tick. Its aircraft supplier is a
+	-- car too, but nothing in the mod moves it, so it keeps the physics.
 	["WH40k-Titans"] = { names = {
-		"warhound", "direwolf", "reaver", "warbringer",
-		"warlord", "warmaster", "imperator", "warmonger",
+		"wh40k-titan-warhound", "wh40k-titan-direwolf", "wh40k-titan-reaver",
+		"wh40k-titan-warbringer", "wh40k-titan-warlord", "wh40k-titan-warmaster",
+		"wh40k-titan-imperator", "wh40k-titan-warmonger",
 	} },
 
 	-- The C5 Galaxy flies itself: a stall floor on its speed, an autopilot, and a swap

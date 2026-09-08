@@ -16,8 +16,11 @@ for _, name in pairs{
     "hovercraft-collision",
     -- Laser Tanks
     "lasercar", "lasertank",
-    -- WH40k Titans
-    "warhound", "reaver", "warlord", "imperator",
+    -- WH40k Titans, all eight, plus the aircraft supplier it does not move
+    "wh40k-titan-warhound", "wh40k-titan-direwolf", "wh40k-titan-reaver",
+    "wh40k-titan-warbringer", "wh40k-titan-warlord", "wh40k-titan-warmaster",
+    "wh40k-titan-imperator", "wh40k-titan-warmonger",
+    "wh40k-titans-aircraft-supplier",
     -- C5 Galaxy
     "c5-galaxy-grounded", "c5-galaxy-flying",
     -- HelicopterRevival, both prefixes
@@ -53,19 +56,27 @@ describe("vehicles another mod drives itself", function()
 
     it("leaves the other mods' own vehicles alone too", function()
         local foreign = tracking.foreign_vehicles(ALL, INSTALLED)
-        for _, name in pairs{"lasercar", "lasertank", "reaver", "warlord", "imperator",
+        for _, name in pairs{"lasercar", "lasertank",
+                             "wh40k-titan-warhound", "wh40k-titan-direwolf",
+                             "wh40k-titan-reaver", "wh40k-titan-warbringer",
+                             "wh40k-titan-warlord", "wh40k-titan-warmaster",
+                             "wh40k-titan-imperator", "wh40k-titan-warmonger",
                              "c5-galaxy-grounded", "c5-galaxy-flying"} do
             assert.is_true(foreign[name] == true, name .. " would be fought over")
         end
     end)
 
-    -- WH40k Titans names its vehicles "reaver", "warlord" and so on. Those are ordinary
-    -- enough words that another mod could reasonably use one, which is why a name only
-    -- counts while the mod that claims it is loaded.
-    it("does not claim a bare name like reaver when that mod is absent", function()
-        local foreign = tracking.foreign_vehicles({ Hovercrafts = "2.1.4" }, INSTALLED)
-        assert.is_nil(foreign["reaver"])
-        assert.is_nil(foreign["warlord"])
+    -- "hovercraft" is a general enough name that another mod may want it, which is why a
+    -- name only counts while the mod that claims it is loaded.
+    it("does not claim a name when the mod claiming it is absent", function()
+        local foreign = tracking.foreign_vehicles({ laser_tanks = "2.0.12" }, INSTALLED)
+        assert.is_nil(foreign["hovercraft"])
+        assert.is_nil(foreign["wh40k-titan-reaver"])
+    end)
+
+    -- a car it ships but never moves is a car this mod should be doing its job on
+    it("leaves WH40k Titans' aircraft supplier tracked, since nothing moves it", function()
+        assert.is_nil(tracking.foreign_vehicles(ALL, INSTALLED)["wh40k-titans-aircraft-supplier"])
     end)
 
     it("keeps its hands on everything else, which is the point of the mod", function()
