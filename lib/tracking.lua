@@ -56,6 +56,51 @@ function tracking.adopt()
 end
 
 
+--- Ground, boat or aircraft, worked out from what the vehicle collides with. Nothing in
+--- the game says which a vehicle is, but the collision mask has to say where it can go,
+--- and that is the same question:
+---
+---   collides with ground   it can only be on water, so it is a boat
+---   collides with the player layer, as water tiles do, so it cannot cross water: ground
+---   collides with neither  nothing stops it, so it is flying
+---
+--- Checked against what the popular vehicle mods actually ship: Cargo Ships' indep-boat
+--- and AAI's ironclad come out as boats, Aircraft's eight planes and Hovercrafts' four
+--- craft as flying, and the car and tank as ground. Lex's Aircraft is a spider-vehicle
+--- rather than a car, so nothing here sees it at all.
+---@param entity_name string
+---@return "ground"|"boat"|"flying"
+function tracking.kind(entity_name)
+	storage.vehicle_kind = storage.vehicle_kind or {}
+	local known = storage.vehicle_kind[entity_name]
+	if not known then
+		local layers = prototypes.entity[entity_name].collision_mask.layers
+		if layers.ground_tile then
+			known = "boat"
+		elseif layers.player then
+			known = "ground"
+		else
+			known = "flying"
+		end
+		storage.vehicle_kind[entity_name] = known
+	end
+	return known
+end
+
+--- How each kind handles.
+---
+--- `rolling` and `braking` are how much of last tick's drift is carried into this one:
+--- higher means it holds its line for longer instead of going where it is pointed. A car
+--- bites, a boat slides, an aircraft largely ignores being steered at all.
+---
+--- `steering` divides speed before it is taken off the vehicle's manoeuvrability, so a
+--- bigger number means speed costs it less of its ability to turn.
+tracking.HANDLING = {
+	ground = { rolling = 0.865, braking = 0.95,  steering = 1.5 },
+	boat   = { rolling = 0.91,  braking = 0.955, steering = 2 },
+	flying = { rolling = 0.95,  braking = 0.97,  steering = 3 },
+}
+
 --- Drop a registration that has not happened yet, for somebody who got in and straight
 --- back out again. Without it the car stays on the books with nobody in it, for good.
 ---@param entity LuaEntity

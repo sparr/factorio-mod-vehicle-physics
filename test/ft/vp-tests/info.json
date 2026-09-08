@@ -6,6 +6,9 @@
   "contact": "sparr0@gmail.com",
   "homepage": "https://github.com/sparr/factorio-mod-vehicle-physics/tree/master/test/ft/vp-tests",
   "factorio_version": "2.1",
-  "description": "Carries no prototypes. It exists so the mod only registers its test fixtures when the suite is being run, and never on a player's machine. Published with the mod's source on GitHub, but never to the mod portal.",
-  "dependencies": ["base", "vehicle-physics"]
+  "description": "A boat and an aircraft for the Vehicle Physics test suite to drive, shaped like the ones Cargo Ships, AAI Vehicles and Aircraft ship. Published with the mod's source on GitHub, but never to the mod portal.",
+  "dependencies": [
+    "base",
+    "vehicle-physics"
+  ]
 }

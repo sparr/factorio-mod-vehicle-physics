@@ -1,6 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.2
 Date: ????
+  Features:
+    - Boats and aircraft are told apart from cars and handled accordingly. A boat slides
+      more than a car does, and an aircraft a good deal more than a boat
+    - Neither boats nor aircraft leave tire marks, and neither throws up dust
   Bugfixes:
     - The physics applies to a vehicle you were already sitting in when the mod was added
       to a game. It used to do nothing at all until you got out and back in

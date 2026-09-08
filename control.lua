@@ -1,19 +1,6 @@
 local geometry = require("lib.geometry")
 local tracking = require("lib.tracking")
 
-function is_flycar(entity_name)
-	if storage.is_flycar[entity_name] == nil then
-		-- 2.0 turned the flat mask into a table of named layers, and player-layer into player
-		if prototypes.entity[entity_name].collision_mask.layers.player then
-			storage.is_flycar[entity_name] = false
-		else
-			storage.is_flycar[entity_name] = true
-		end
-		--game.print(entity_name .. " is "..tostring(storage.is_flycar[entity_name]))
-	end
-	return storage.is_flycar[entity_name]
-end
-
 script.on_event(defines.events.on_player_driving_changed_state, function(event)
 if event.entity and event.entity.type == "car" and not tracking.exclusions[event.entity.name] then
 	if not event.entity.get_driver() then
@@ -124,19 +111,11 @@ script.on_event(defines.events.on_tick, function(event)
 				local movement_y = pos.y-tbl.position.y
 				local drift_x = pos.x-tbl.position.x
 				local drift_y = pos.y-tbl.position.y
-				local drifting_multiplier = 0.865
-				local flycar = is_flycar(tbl.entity.name)
+				local kind = tracking.kind(tbl.entity.name)
 				local is_braking = tbl.entity.riding_state.acceleration == defines.riding.acceleration.braking
 				local entity_orientation = tbl.entity.orientation
-				if flycar then 
-					if is_braking then
-						drifting_multiplier = 0.97
-					else
-						drifting_multiplier = 0.95
-					end
-				elseif is_braking then
-					drifting_multiplier = 0.95
-				end
+				local handling = tracking.HANDLING[kind]
+				local drifting_multiplier = handling[is_braking and "braking" or "rolling"]
 				drift_x = movement_x*(1-drifting_multiplier)+tbl.drift.x*drifting_multiplier
 				drift_y = movement_y*(1-drifting_multiplier)+tbl.drift.y*drifting_multiplier
 				--if (tbl.drifting or 1000) < 3 then
@@ -146,7 +125,7 @@ script.on_event(defines.events.on_tick, function(event)
 				local concrete_tiles = 0
 				local required_drift = 0.001
 				local make_no_tire_marks = false
-				if not flycar then
+				if kind == "ground" then
 					local tiles = tbl.entity.surface.find_tiles_filtered{position=tbl.entity.position, radius = 1.5}
 					for a,b in pairs(tiles) do
 						if b.prototype.vehicle_friction_modifier <=0.9 then
@@ -193,7 +172,7 @@ script.on_event(defines.events.on_tick, function(event)
 					end
 				end
 				if not is_braking then
-					local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / (flycar and 3 or 1.5))
+					local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / handling.steering)
 					--game.print("manuver: "..manuverability)
 					local orientation_change = entity_orientation - tbl.orientation
 					if orientation_change < -0.5 then
@@ -205,7 +184,7 @@ script.on_event(defines.events.on_tick, function(event)
 					tbl.entity.orientation = entity_orientation
 					tbl.orientation = entity_orientation
 				else
-					if not flycar then
+					if kind == "ground" then
 						if concrete_tiles >=1 then
 							local manuverability = math.max(0.4,0.2 + 0.9 - math.abs(speed) / 3)
 							--game.print("manuver: "..manuverability)
@@ -259,7 +238,7 @@ script.on_event(defines.events.on_tick, function(event)
 					--game.print(geometry.distance(pos, new_pos))
 					tbl.drifting = (tbl.drifting or 0) + 1
 					--game.print(game.tick)
-					if not flycar and event.tick % 4==2 and concrete_tiles == 0 then-- (drift_x^2+drift_y^2)^0.5 > required_drift*4.5 then
+					if kind == "ground" and event.tick % 4==2 and concrete_tiles == 0 then-- (drift_x^2+drift_y^2)^0.5 > required_drift*4.5 then
 						--game.print("smoke"..game.tick)
 						tbl.entity.surface.create_trivial_smoke{name="hover-smoke", position=tbl.entity.position}
 					end
@@ -326,7 +305,7 @@ script.on_init(function()
 	storage.entering = {}
 	storage.cars = {}
 	storage.tanks = {}
-	storage.is_flycar = {}
+	storage.vehicle_kind = {}
 	storage.geigers = {}
 	storage.version = 3
 	tracking.adopt()
@@ -342,9 +321,10 @@ script.on_configuration_changed(function()
 		storage.entering = {}
 		storage.version = 3
 	end
-	-- collision masks were rewritten in 2.0, so what was worked out under 1.1 is no
-	-- longer the answer to the same question
-	storage.is_flycar = {}
+	-- the mask is now read for three answers rather than two, and 2.0 rewrote masks
+	-- anyway, so nothing a previous version worked out is worth keeping
+	storage.is_flycar = nil
+	storage.vehicle_kind = {}
 	tracking.adopt()
 end)
 
@@ -354,6 +334,7 @@ if script.active_mods["factorio-test"] and script.active_mods["vp-tests"] then
 	require("__factorio-test__/init")({
 		"test.ft.driving",
 		"test.ft.tracking",
+		"test.ft.kinds",
 	}, {
 		load_luassert = true,
 		game_speed = 100,
