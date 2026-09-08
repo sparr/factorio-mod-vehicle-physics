@@ -24,8 +24,9 @@ Date: ????
       to a game. It used to do nothing at all until you got out and back in
     - Getting into a vehicle and straight back out no longer leaves it being tracked with
       nobody in it
-    - Hovercrafts and Helicopter Revival move their vehicles themselves, and this mod now
-      keeps its hands off them. The two were fighting for control every tick
+    - Vehicles that their own mod already flies are left alone, instead of being fought
+      over every tick. Covers Hovercrafts, Helicopter Revival, Laser Tanks, WH40k Titans,
+      the C5 Galaxy, and any plane registered with AircraftRealism
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-09-08

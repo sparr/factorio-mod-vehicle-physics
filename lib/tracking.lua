@@ -15,6 +15,52 @@ local tracking = {}
 --- each entry is tied to the mod that ships it, and a name only counts when that mod is
 --- actually loaded -- a bare list rots silently when a mod renames its prototypes, and
 --- would wrongly exclude an unrelated vehicle that happened to share a name.
+--- AircraftRealism keeps no fixed list of planes: other mods register theirs with it at
+--- the data stage, and it carries the registry into the control stage by serialising it
+--- into the order field of a run of prototypes. Reading the same registry is the only way
+--- to know which planes it has taken charge of, and it is how the mod itself does it.
+---@param entity_prototypes table<string, any>
+---@param decode function? the deserialiser, for tests; the game's serpent by default
+---@return table<string, boolean>
+function tracking.aircraft_realism_planes(entity_prototypes, decode)
+	decode = decode or (serpent and serpent.load)
+	if not decode then return {} end
+	local serialised, index = "", 0
+	while true do
+		local holder = entity_prototypes["aircraft-realism-plane-properties-" .. index]
+		if not holder then break end
+		serialised = serialised .. (holder.order or "")
+		index = index + 1
+	end
+	if serialised == "" then return {} end
+	-- serpent.load answers with its own success flag before the value, so through pcall
+	-- there are three results to unpack, not two
+	local called, loaded, registry = pcall(decode, serialised)
+	if not called or not loaded or type(registry) ~= "table" then return {} end
+	local names = {}
+	for name in pairs(registry.grounded or {}) do names[name] = true end
+	for name in pairs(registry.airborne or {}) do names[name] = true end
+	return names
+end
+
+--- Vehicles another mod is already moving itself, which this mod must not touch. Two
+--- mods writing speed and position to the same entity every tick do not average out;
+--- they overwrite each other, and the vehicle stutters or refuses to go anywhere.
+---
+--- Naming the prototypes is the only way to know. Nothing on a vehicle says whether some
+--- other mod has claimed it, and the mods that do claim one identify it by name too. So
+--- each entry is tied to the mod that ships it, and a name only counts when that mod is
+--- actually loaded -- a bare list rots silently when a mod renames its prototypes, and
+--- would wrongly exclude an unrelated vehicle that happened to share a name. That last
+--- part is not hypothetical here: WH40k Titans calls its vehicles things like "reaver"
+--- and "warlord".
+---
+--- Found by reading the control stage of the two hundred most downloaded vehicle mods on
+--- the portal for writes to speed, orientation and riding_state. Mods that steer whatever
+--- the player happens to be driving -- VehicleSnap, Pavement Drive Assist, autodrive,
+--- RoboTank, AAI Programmable Vehicles, Cardinal -- are deliberately not here: they claim
+--- no vehicles of their own, so there is nothing to name, and excluding what they touch
+--- would mean excluding the car.
 local FOREIGN = {
 	-- Sparr's raven mod, which flies its birds itself
 	["raven2"] = { names = { "raven2-1", "raven2-2", "raven2-shadow" } },
@@ -30,6 +76,25 @@ local FOREIGN = {
 	-- is no fixed list to copy: the base a pilot actually sits in is <prefix>heli-entity-_-,
 	-- and <prefix>helicopter is the placement entity it swaps out on build.
 	["HelicopterRevival"] = { patterns = { "entity%-_%-$", "helicopter$" } },
+
+	-- Laser Tanks carries the same drift model as Hovercrafts, on these two
+	["laser_tanks"] = { names = { "lasercar", "lasertank" } },
+
+	-- WH40k Titans damps its titans' speed itself every tick
+	["WH40k-Titans"] = { names = {
+		"warhound", "direwolf", "reaver", "warbringer",
+		"warlord", "warmaster", "imperator", "warmonger",
+	} },
+
+	-- The C5 Galaxy flies itself: a stall floor on its speed, an autopilot, and a swap
+	-- between the grounded and flying prototypes at takeoff
+	["c5-galaxy"] = { names = { "c5-galaxy-grounded", "c5-galaxy-flying" } },
+
+	-- AircraftRealism runs takeoff, landing, stall and overspeed on whichever planes have
+	-- been registered with it, which is not something a fixed list can say
+	["AircraftRealism"] = { lookup = function(entity_prototypes)
+		return tracking.aircraft_realism_planes(entity_prototypes)
+	end },
 }
 
 --- The vehicle names other mods own, out of everything installed.
@@ -49,6 +114,11 @@ function tracking.foreign_vehicles(active_mods, entity_prototypes)
 			for _, pattern in pairs(claim.patterns or {}) do
 				for name in pairs(entity_prototypes) do
 					if name:find(pattern) then foreign[name] = true end
+				end
+			end
+			if claim.lookup then
+				for name in pairs(claim.lookup(entity_prototypes)) do
+					foreign[name] = true
 				end
 			end
 		end
