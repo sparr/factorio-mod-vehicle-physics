@@ -1,6 +1,6 @@
 {
     "name": "vehicle-physics",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "title": "Vehicle Physics",
     "description": "Realistic driving physics. Supports airplanes",
     "author": "Sparr",
@@ -21,6 +21,9 @@
         "(?)aai-vehicles-chaingunner",
         "(?)aai-vehicles-laser-tank",
         "(?)aai-vehicles-flame-tank",
+        "(?)laser_tanks",
+        "(?)WH40k-Titans",
+        "(?)c5-galaxy",
         "(?)HelicopterRevival"
     ],
     "package": {
