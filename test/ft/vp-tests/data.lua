@@ -17,3 +17,15 @@ data:extend{
     vehicle("vp-tests-boat", { ground_tile = true }),
     vehicle("vp-tests-plane", {}),
 }
+
+--- The hotkey the sandbox listens for. Declared here rather than in the mod itself,
+--- because the sandbox is a thing for trying the mod out by hand and has no business
+--- appearing in anybody's controls list who is just playing the game.
+data:extend{
+    {
+        type = "custom-input",
+        name = "vp-tests-toggle-physics",
+        key_sequence = "N",
+        consuming = "none",
+    },
+}

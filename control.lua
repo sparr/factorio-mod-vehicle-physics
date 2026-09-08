@@ -1,6 +1,15 @@
 local geometry = require("lib.geometry")
 local tracking = require("lib.tracking")
 
+--- A place to try the mod out by hand, present only when the test prototypes are and the
+--- suite is not running. It is called into from the handlers below rather than
+--- registering its own, since a mod gets one handler per event.
+local sandbox = nil
+if script.active_mods["vp-tests"] and not script.active_mods["factorio-test"] then
+	sandbox = require("test.sandbox")
+	sandbox.register()
+end
+
 script.on_event(defines.events.on_player_driving_changed_state, function(event)
 if event.entity and event.entity.type == "car" and not tracking.exclusions[event.entity.name] then
 	if not event.entity.get_driver() then
@@ -24,6 +33,7 @@ if event.entity and event.entity.type == "car" and not tracking.exclusions[event
 		end
 	end
 end
+if sandbox then sandbox.on_driving_changed(event) end
 end)
 
 
