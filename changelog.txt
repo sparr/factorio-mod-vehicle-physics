@@ -8,6 +8,8 @@ Date: ????
       quarter as fast
     - Neither boats nor aircraft leave tire marks, and neither throws up dust
   Bugfixes:
+    - A drifting boat is no longer pushed onto land, where it could not move at all. The
+      same keeps a drifting car out of the water
     - The physics applies to a vehicle you were already sitting in when the mod was added
       to a game. It used to do nothing at all until you got out and back in
     - Getting into a vehicle and straight back out no longer leaves it being tracked with

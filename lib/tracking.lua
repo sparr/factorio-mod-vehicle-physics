@@ -119,6 +119,31 @@ function tracking.drift_multiplier(kind, braking)
 	return 1 - (1 - car) / tracking.HANDLING[kind].drift
 end
 
+--- Would this vehicle be sitting on ground it cannot be on, if it were put here?
+---
+--- The drift moves a vehicle by teleporting it, and a teleport asks nothing about where
+--- it is going. A boat cannot be on land, so a boat drifting shorewards would be put on
+--- the beach and stick there, unable to move because every direction out is also land.
+--- The same question keeps a car out of the water.
+---@param entity LuaEntity
+---@param position MapPosition
+---@return boolean
+function tracking.aground(entity, position)
+	local box = entity.prototype.collision_box
+	local mask = entity.prototype.collision_mask.layers
+	local surface = entity.surface
+	for x = math.floor(position.x + box.left_top.x),
+	        math.floor(position.x + box.right_bottom.x) do
+		for y = math.floor(position.y + box.left_top.y),
+		        math.floor(position.y + box.right_bottom.y) do
+			for layer in pairs(surface.get_tile(x, y).prototype.collision_mask.layers) do
+				if mask[layer] then return true end
+			end
+		end
+	end
+	return false
+end
+
 --- Drop a registration that has not happened yet, for somebody who got in and straight
 --- back out again. Without it the car stays on the books with nobody in it, for good.
 ---@param entity LuaEntity

@@ -169,3 +169,44 @@ describe("an aircraft coming out of a slide", function()
         end)
     end)
 end)
+
+--- The drift moves a vehicle by teleporting it, and a teleport asks nothing about where it
+--- is going. A boat put on the beach sticks there: every direction out is land too.
+describe("a boat driven at the shore", function()
+    test("never ends up aground", function()
+        -- water to the west, land from x=0 east, and the boat pointed at the beach
+        local patch = world.patch("water")
+        local surface = patch.surface
+        local beach = {}
+        for x = patch.left + 40, patch.left + 96 - 1 do
+            for y = patch.top, patch.top + 96 - 1 do
+                beach[#beach + 1] = { name = "grass-1", position = { x, y } }
+            end
+        end
+        surface.set_tiles(beach)
+
+        local boat = patch.drive("vp-tests-boat")
+        boat.teleport({ patch.left + 20, patch.top + 48 })
+        patch.player.teleport(boat.position, surface)
+        boat.orientation = 0.25          -- pointed east, at the beach
+
+        patch.hold(ACCELERATE)
+        after_ticks(90, function()
+            -- and then stand on the brake, which is when it used to climb out
+            patch.hold(defines.riding.acceleration.braking)
+            local aground = false
+            for sample = 1, 90 do
+                after_ticks(sample, function()
+                    if boat.valid and tracking.aground(boat, boat.position) then
+                        aground = true
+                    end
+                end)
+            end
+            after_ticks(91, function()
+                assert.is_false(aground,
+                    "the boat was put on the beach, where it cannot move")
+                world.release_controls()
+            end)
+        end)
+    end)
+end)

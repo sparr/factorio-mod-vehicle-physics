@@ -303,8 +303,17 @@ script.on_event(defines.events.on_tick, function(event)
 							tbl.entity.teleport(5,5)
 						end
 					end --]]
-					tbl.entity.teleport(new_pos)
-					tbl.drift = {x=drift_x,y=drift_y}
+					-- The drift is applied by teleporting, and a teleport asks nothing
+					-- about where it is going: a boat drifting shorewards was being put
+					-- on the beach, where it stuck fast because every way out was land
+					-- too. Somewhere it cannot be is somewhere it does not go, and the
+					-- drift that was carrying it there is spent.
+					if tracking.aground(tbl.entity, new_pos) then
+						tbl.drift = {x=0,y=0}
+					else
+						tbl.entity.teleport(new_pos)
+						tbl.drift = {x=drift_x,y=drift_y}
+					end
 				else
 					--tbl.drift = {x=movement_x*0.1+drift_x*0.9,y=movement_y*0.1+drift_y*0.9}
 					tbl.drift = {x=movement_x*0.9+drift_x*0.1,y=movement_y*0.9+drift_y*0.1}
